@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Fruit Stall",
+    "location": { "lat": 19.076, "lng": 72.877 },
+    "owner": "Rajesh Kumar"
+  },
+  {
+    "name": "Spice Corner",
+    "location": { "lat": 19.084, "lng": 72.88 },
+    "owner": "Meera Shah"
+  },
+  {
+    "name": "Clothing Store",
+    "location": { "lat": 19.07, "lng": 72.89 },
+    "owner": "Amit Singh"
+  }
+]
