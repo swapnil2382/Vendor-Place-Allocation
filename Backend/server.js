@@ -4,6 +4,9 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const stallRoutes = require("./routes/stalls");
+const vendorRoutes = require("./routes/vendorRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const authRoutes = require("./routes/authRoutes");
 
 dotenv.config();
 
@@ -15,6 +18,9 @@ app.use(express.json());
 
 // Routes
 app.use("/api/stalls", stallRoutes);
+app.use("/api/vendors", vendorRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/auth", authRoutes);
 
 // Connect to MongoDB
 mongoose

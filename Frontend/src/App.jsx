@@ -1,33 +1,39 @@
-// src/App.jsx
-import { useState, useEffect } from "react";
-import MapComponent from "./pages/MapComponent";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";  // Import AuthProvider
+import Register from "./pages/Register";
+import Login from "./pages/Login";
+import VendorDashboard from "./pages/VendorDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import PrivateRoute from "./PrivateRoute";
+import Homepage from "./pages/HomePage";
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import CompleteProfile from "./pages/CompleteProfile";
 
 function App() {
-  const [stalls, setStalls] = useState([]);
-
-  useEffect(() => {
-    const fetchStalls = async () => {
-      try {
-        const response = await fetch("http://localhost:5000/api/stalls");
-        const data = await response.json();
-        console.log("Fetched Stalls:", data);
-        setStalls(data);
-      } catch (err) {
-        console.error("Error fetching stalls:", err);
-      }
-    };
-    fetchStalls();
-  }, []);
-
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center">
-      <h1 className="text-3xl font-bold text-gray-800 my-6">
-        Weekly Market Stalls Map
-      </h1>
-      <div className="w-full max-w-5xl h-[600px] shadow-lg rounded-lg overflow-hidden">
-        <MapComponent stalls={stalls} />
-      </div>
-    </div>
+    <AuthProvider>
+      <Router>
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Homepage />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/complete-profile" element={<CompleteProfile />} />
+
+
+          {/* Protected Routes */}
+          <Route element={<PrivateRoute role="vendor" />}>
+            <Route path="/vendor-dashboard" element={<VendorDashboard />} />
+          </Route>
+
+          <Route element={<PrivateRoute role="admin" />}>
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          </Route>
+        </Routes>
+        <Footer />
+      </Router>
+    </AuthProvider>
   );
 }
 
