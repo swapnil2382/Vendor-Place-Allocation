@@ -8,13 +8,11 @@ const { protectVendor, protectAdmin } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// ✅ Ensure 'uploads' directory exists
 const uploadDir = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// ✅ Configure Multer Storage for File Uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, uploadDir);
@@ -25,10 +23,82 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// ✅ Serve uploaded files statically (Ensure this is in `server.js`)
-// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// Apply for Business License
+router.post(
+    "/apply-license",
+    protectVendor,
+    upload.fields([
+        { name: "shopPhoto", maxCount: 1 },
+        { name: "vendorPhoto", maxCount: 1 }
+    ]),
+    async (req, res) => {
+        try {
+            console.log("📩 Incoming License Application Request:", req.body);
+            console.log("📂 Uploaded Files:", req.files);
 
-// 🏪 Get Logged-in Vendor Details
+            const { aadhaarID, panNumber, businessName, gstNumber, yearsInBusiness, businessDescription } = req.body;
+
+            if (!aadhaarID || !panNumber || !businessName) {
+                return res.status(400).json({ message: "❌ Aadhaar ID, PAN Number, and Business Name are required." });
+            }
+
+            if (!req.files || !req.files.shopPhoto || !req.files.vendorPhoto) {
+                return res.status(400).json({ message: "❌ Both shopPhoto and vendorPhoto are required." });
+            }
+
+            const shopPhotoUrl = `http://localhost:5000/uploads/${req.files.shopPhoto[0].filename}`;
+            const vendorPhotoUrl = `http://localhost:5000/uploads/${req.files.vendorPhoto[0].filename}`;
+
+            const vendor = await Vendor.findById(req.vendor.id);
+            if (!vendor) {
+                return res.status(404).json({ message: "Vendor not found" });
+            }
+
+            vendor.panNumber = panNumber;
+            vendor.businessName = businessName;
+            vendor.license = {
+                status: "requested",
+                documents: {
+                    aadhaarID,
+                    panNumber,
+                    businessName,
+                    gstNumber: gstNumber || "",
+                    yearsInBusiness: Number(yearsInBusiness) || 0, // Convert to number
+                    businessDescription: businessDescription || "",
+                    shopPhoto: shopPhotoUrl,
+                    vendorPhoto: vendorPhotoUrl
+                },
+                appliedAt: new Date()
+            };
+            
+
+            await vendor.save();
+            res.json({ message: "✅ License application submitted successfully.", status: "requested" });
+        } catch (error) {
+            console.error("❌ Server Error:", error);
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
+    }
+);
+
+// Admin Approves License
+router.post("/admin/approve-license/:vendorId", protectAdmin, async (req, res) => {
+    try {
+        const vendor = await Vendor.findById(req.params.vendorId);
+        if (!vendor) return res.status(404).json({ message: "Vendor not found" });
+
+        vendor.license.status = "completed";
+        vendor.license.approvedAt = new Date();
+        vendor.license.licenseNumber = `LIC-${vendor.shopID}-${Date.now()}`; // Generate a unique license number
+        await vendor.save();
+
+        res.json({ message: "✅ License approved successfully.", status: "completed" });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
+// Other routes remain unchanged...
 router.get("/me", protectVendor, async (req, res) => {
     try {
         const vendor = await Vendor.findById(req.vendor.id).select("-password");
@@ -39,7 +109,6 @@ router.get("/me", protectVendor, async (req, res) => {
     }
 });
 
-// 📍 Update Vendor Location
 router.put("/update-location", protectVendor, async (req, res) => {
     try {
         const { location } = req.body;
@@ -61,85 +130,6 @@ router.put("/update-location", protectVendor, async (req, res) => {
     }
 });
 
-// ✅ Apply for Business License
-router.post(
-    "/apply-license",
-    protectVendor,
-    upload.fields([
-        { name: "shopPhoto", maxCount: 1 },
-        { name: "vendorPhoto", maxCount: 1 }
-    ]),
-    async (req, res) => {
-        try {
-            console.log("📩 Incoming License Application Request:", req.body);
-            console.log("📂 Uploaded Files:", req.files);
-
-            // Extract required fields
-            const { aadhaarID, panNumber, businessName, gstNumber, yearsInBusiness, businessDescription } = req.body;
-
-            // Validate required fields
-            if (!aadhaarID || !panNumber || !businessName) {
-                return res.status(400).json({ message: "❌ Aadhaar ID, PAN Number, and Business Name are required." });
-            }
-
-            // Ensure files are uploaded
-            if (!req.files || !req.files.shopPhoto || !req.files.vendorPhoto) {
-                return res.status(400).json({ message: "❌ Both shopPhoto and vendorPhoto are required." });
-            }
-
-            // Store uploaded file paths
-            const shopPhotoUrl = `http://localhost:5000/uploads/${req.files.shopPhoto[0].filename}`;
-            const vendorPhotoUrl = `http://localhost:5000/uploads/${req.files.vendorPhoto[0].filename}`;
-
-            // Find the vendor
-            const vendor = await Vendor.findById(req.vendor.id);
-            if (!vendor) {
-                return res.status(404).json({ message: "Vendor not found" });
-            }
-
-            // Update vendor's license details & status
-            vendor.panNumber = panNumber;
-            vendor.businessName = businessName;
-            vendor.license = {
-                documents: {
-                    aadhaarID,
-                    panNumber,
-                    businessName,
-                    gstNumber,
-                    yearsInBusiness,
-                    businessDescription,
-                    shopPhoto: shopPhotoUrl,
-                    vendorPhoto: vendorPhotoUrl
-                },
-                appliedAt: new Date()
-            };
-            vendor.licenseStatus = "waiting"; // ⏳ Set status to waiting for approval
-
-            await vendor.save();
-            res.json({ message: "✅ License application submitted successfully.", status: "waiting" });
-        } catch (error) {
-            console.error("❌ Server Error:", error);
-            res.status(500).json({ message: "Server error", error: error.message });
-        }
-    }
-);
-
-// ✅ Admin Approves License
-router.post("/admin/approve-license/:vendorId", protectAdmin, async (req, res) => {
-    try {
-        const vendor = await Vendor.findById(req.params.vendorId);
-        if (!vendor) return res.status(404).json({ message: "Vendor not found" });
-
-        vendor.licenseStatus = "completed"; // ✅ Mark as completed
-        await vendor.save();
-
-        res.json({ message: "✅ License approved successfully.", status: "completed" });
-    } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
-});
-
-// 🏬 Get All Vendors for Marketplace
 router.get("/marketplace", async (req, res) => {
     try {
         const vendors = await Vendor.find({ isActive: true }).select("name category location shopID");
@@ -149,7 +139,6 @@ router.get("/marketplace", async (req, res) => {
     }
 });
 
-// 📝 Complete Vendor Profile
 router.put("/complete-profile", protectVendor, async (req, res) => {
     try {
         const vendor = await Vendor.findById(req.vendor.id);
@@ -164,7 +153,6 @@ router.put("/complete-profile", protectVendor, async (req, res) => {
     }
 });
 
-// 🛒 Upload Products
 router.post("/add-product", protectVendor, async (req, res) => {
     try {
         const { name, image, description, price } = req.body;
@@ -180,7 +168,6 @@ router.post("/add-product", protectVendor, async (req, res) => {
     }
 });
 
-// 📦 Get Vendor Orders
 router.get("/orders", protectVendor, async (req, res) => {
     try {
         const vendor = await Vendor.findById(req.vendor.id).populate("orders.userId", "username email");
@@ -192,7 +179,6 @@ router.get("/orders", protectVendor, async (req, res) => {
     }
 });
 
-// ✅ Complete an Order
 router.put("/complete-order/:orderId", protectVendor, async (req, res) => {
     try {
         const vendor = await Vendor.findById(req.vendor.id);
