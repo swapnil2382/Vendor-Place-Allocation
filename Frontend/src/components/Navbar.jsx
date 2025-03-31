@@ -1,62 +1,75 @@
+// src/components/Navbar.jsx
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 function Navbar() {
-    const [user, setUser] = useState(null);
-    const [role, setRole] = useState(localStorage.getItem("role")); // Fetch role from localStorage
-    const navigate = useNavigate(); // Initialize navigate
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchUser = async () => {
-            const token = localStorage.getItem("token");
-            if (!token || role !== "vendor") return; // Only fetch vendor details
+  useEffect(() => {
+    const fetchUser = async () => {
+      const token = localStorage.getItem("token");
+      console.log("Token in Navbar:", token);
+      if (!token) return;
 
-            try {
-                const res = await axios.get("http://localhost:5000/api/vendors/me", {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                setUser(res.data);
-            } catch (err) {
-                console.error("Error fetching user:", err);
-                localStorage.removeItem("token"); // Remove token if invalid
-                setRole(null);
-            }
-        };
-
-        fetchUser();
-    }, [role]);
-
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
-        setUser(null);
-        setRole(null);
-        navigate("/"); // Redirect to homepage
+      try {
+        const res = await axios.get("http://localhost:5000/api/vendors/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUser(res.data);
+      } catch (err) {
+        console.error("Error fetching user:", err.response?.data || err);
+      }
     };
+    fetchUser();
+  }, []);
 
-    return (
-        <nav className="bg-blue-600 p-4 flex justify-between items-center">
-            <h1 className="text-white text-2xl font-bold">Vendor Marketplace</h1>
-            {role ? (
-                <div className="flex items-center gap-4">
-                    {role === "admin" ? (
-                        <span className="text-white font-bold">IND GOVT.</span>
-                    ) : (
-                        <span className="text-white">{user?.name || "Vendor"}</span>
-                    )}
-                    <img src="https://via.placeholder.com/40" alt="Profile" className="w-10 h-10 rounded-full" />
-                    <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded">
-                        Logout
-                    </button>
-                </div>
-            ) : (
-                <Link to="/login" className="bg-white text-blue-600 px-4 py-2 rounded">
-                    Login
-                </Link>
-            )}
-        </nav>
-    );
+  const logout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+    navigate("/login");
+  };
+
+  return (
+    <nav className="bg-gray-800 p-4">
+      <div className="max-w-7xl mx-auto flex justify-between items-center">
+        <Link to="/" className="text-white text-xl font-bold">
+          Market App
+        </Link>
+        <div className="flex items-center space-x-4">
+          {user ? (
+            <>
+              <span className="text-white">
+                Welcome, {user.name || "Vendor"}
+              </span>
+              <Link
+                to="/vendor-dashboard"
+                className="text-white hover:underline"
+              >
+                Dashboard
+              </Link>
+              <Link to="/places" className="text-white hover:underline">
+                Find Spaces
+              </Link>
+              <button onClick={logout} className="text-white hover:underline">
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="text-white hover:underline">
+                Login
+              </Link>
+              <Link to="/register" className="text-white hover:underline">
+                Register
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
 }
 
 export default Navbar;

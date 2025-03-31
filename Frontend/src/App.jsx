@@ -1,5 +1,6 @@
+// src/App.jsx
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";  // Import AuthProvider
+import { AuthProvider } from "./context/AuthContext";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import VendorDashboard from "./pages/VendorDashboard";
@@ -9,6 +10,7 @@ import Homepage from "./pages/HomePage";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import CompleteProfile from "./pages/CompleteProfile";
+import Places from "./pages/Places";
 
 function App() {
   return (
@@ -21,10 +23,10 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/complete-profile" element={<CompleteProfile />} />
 
-
           {/* Protected Routes */}
           <Route element={<PrivateRoute role="vendor" />}>
             <Route path="/vendor-dashboard" element={<VendorDashboard />} />
+            <Route path="/places" element={<Places />} />
           </Route>
 
           <Route element={<PrivateRoute role="admin" />}>

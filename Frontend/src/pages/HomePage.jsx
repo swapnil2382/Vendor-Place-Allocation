@@ -24,19 +24,7 @@ function HomePage() {
       </section>
 
       {/* Weekly Market Stalls Map */}
-      <section className="max-w-5xl mx-auto my-10 p-6 bg-white shadow rounded">
-        <h3 className="text-2xl font-bold mb-3">Weekly Market Stalls Map</h3>
-        <div className="w-full h-[600px] shadow-lg rounded-lg overflow-hidden">
-          {loading ? (
-            <p className="text-gray-700 text-center">Loading stalls...</p>
-          ) : error ? (
-            <p className="text-red-500 text-center">Error: {error}</p>
-          ) : (
-            <MapComponent stalls={stalls} />
-          )}
-        </div>
-      </section>
-
+      
     </div>
   );
 }
