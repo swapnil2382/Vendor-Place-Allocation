@@ -6,25 +6,32 @@ import { useAuth } from "../context/AuthContext"; // Import useAuth
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState("vendor"); // Default to vendor login
   const navigate = useNavigate();
   const { login } = useAuth(); // Use AuthContext
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const url = isAdmin
-        ? "http://localhost:5000/api/auth/admin/login"
-        : "http://localhost:5000/api/auth/vendor/login";
+      let url = "http://localhost:5000/api/auth/vendor/login"; // Default vendor login
+      let data = { email, password };
 
-      const data = isAdmin ? { username: email, password } : { email, password };
+      if (role === "admin") {
+        url = "http://localhost:5000/api/auth/admin/login";
+        data = { username: email, password }; // Admin uses username
+      } else if (role === "user") {
+        url = "http://localhost:5000/api/auth/user/login";
+      }
 
       const response = await axios.post(url, data);
-
-      login(response.data.token, isAdmin ? "admin" : "vendor"); // Save token globally
+      login(response.data.token, role); // Save token globally
 
       alert("Login successful!");
-      navigate(isAdmin ? "/admin-dashboard" : "/vendor-dashboard");
+      navigate(
+        role === "admin" ? "/admin-dashboard" :
+        role === "vendor" ? "/vendor-dashboard" :
+        "/user-dashboard"
+      );
     } catch (error) {
       alert(error.response?.data?.message || "Login failed.");
     }
@@ -33,14 +40,42 @@ const Login = () => {
   return (
     <div className="container">
       <h2>Login</h2>
-      <label>
-        <input type="checkbox" checked={isAdmin} onChange={() => setIsAdmin(!isAdmin)} />
-        Admin Login
-      </label>
+
+      {/* Role Selection */}
+      <div className="role-selection">
+        <label>
+          <input
+            type="radio"
+            value="vendor"
+            checked={role === "vendor"}
+            onChange={() => setRole("vendor")}
+          />
+          Vendor
+        </label>
+        <label>
+          <input
+            type="radio"
+            value="user"
+            checked={role === "user"}
+            onChange={() => setRole("user")}
+          />
+          User
+        </label>
+        <label>
+          <input
+            type="radio"
+            value="admin"
+            checked={role === "admin"}
+            onChange={() => setRole("admin")}
+          />
+          Admin
+        </label>
+      </div>
+
       <form onSubmit={handleLogin}>
         <input
           type="text"
-          placeholder={isAdmin ? "Admin Username" : "Email"}
+          placeholder={role === "admin" ? "Admin Username" : "Email"}
           onChange={(e) => setEmail(e.target.value)}
           required
         />

@@ -6,14 +6,14 @@ const { protectAdmin } = require("../middleware/authMiddleware");
 const router = express.Router();
 
 // Get all vendors for admin dashboard
-router.get("/vendors", protectAdmin, async (req, res) => {
+router.get("/vendors", async (req, res) => {
     try {
-        const vendors = await Vendor.find().select("name email shopID location isActive");
-        res.json(vendors);
+      const vendors = await Vendor.find({}, "name shopID category licenseStatus licenseImage licenseDate");
+      res.json(vendors);
     } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message });
+      res.status(500).json({ error: "Error fetching vendors" });
     }
-});
+  });
 
 // Reallocate vendor to a different spot
 router.post("/reallocate/:id", protectAdmin, async (req, res) => {
@@ -32,5 +32,15 @@ router.post("/reallocate/:id", protectAdmin, async (req, res) => {
     }
 });
 
+router.post("/approve-license/:vendorId", async (req, res) => {
+    try {
+      const { vendorId } = req.params;
+      await Vendor.findByIdAndUpdate(vendorId, { licenseStatus: "completed" });
+  
+      res.json({ message: "License approved successfully!" });
+    } catch (error) {
+      res.status(500).json({ error: "Error approving license" });
+    }
+  });
 
 module.exports = router;

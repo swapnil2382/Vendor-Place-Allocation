@@ -63,7 +63,7 @@ const CompleteProfile = () => {
       });
 
       alert("Profile updated successfully!");
-      navigate("/vendor-dashboard"); // ✅ Redirect after completion
+      navigate("/vendor"); // ✅ Redirect after completion
     } catch (error) {
       alert("Profile update failed!");
     }
@@ -74,7 +74,7 @@ const CompleteProfile = () => {
       {/* Close Button */}
       <button 
         className="absolute top-4 right-4 text-gray-600 hover:text-red-500 text-xl"
-        onClick={() => navigate("/vendor-dashboard")} // ✅ Close redirects to dashboard
+        onClick={() => navigate("/vendor")} // ✅ Close redirects to dashboard
       >
         ✖
       </button>

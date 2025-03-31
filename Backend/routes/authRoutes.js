@@ -2,12 +2,66 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const Vendor = require("../models/Vendor");
+const User = require("../models/User");
 
 const router = express.Router();
 
-// Fixed admin credentials
+// Admin Credentials
 const ADMIN_USERNAME = "admin";
 const ADMIN_PASSWORD = "123";
+
+// Vendor Registration
+router.post("/register/vendor", async (req, res) => {
+    try {
+        const { name, email, password, phone, aadhaarID, category, location } = req.body;
+
+        if (await Vendor.findOne({ email }) || await User.findOne({ email })) {
+            return res.status(400).json({ message: "Email already in use" });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newVendor = new Vendor({
+            name,
+            email,
+            password: hashedPassword,
+            phone,
+            aadhaarID,
+            category,
+            location,
+            role: "vendor",
+        });
+
+        await newVendor.save();
+        res.status(201).json({ message: "Vendor registered successfully!" });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
+// User Registration
+router.post("/register/user", async (req, res) => {
+    try {
+        const { username, email, password, phone } = req.body;
+
+        if (await User.findOne({ email }) || await Vendor.findOne({ email })) {
+            return res.status(400).json({ message: "Email already in use" });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({
+            username,
+            email,
+            password: hashedPassword,
+            phone,
+            role: "user",
+        });
+
+        await newUser.save();
+        res.status(201).json({ message: "User registered successfully!" });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
 
 // Admin Login
 router.post("/admin/login", async (req, res) => {
@@ -34,6 +88,24 @@ router.post("/vendor/login", async (req, res) => {
 
         const token = jwt.sign({ id: vendor._id, role: "vendor" }, process.env.JWT_SECRET, { expiresIn: "2h" });
         res.json({ message: "Vendor login successful", token });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
+// User Login
+router.post("/user/login", async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });
+
+        const token = jwt.sign({ id: user._id, role: "user" }, process.env.JWT_SECRET, { expiresIn: "2h" });
+        res.json({ message: "User login successful", token });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
