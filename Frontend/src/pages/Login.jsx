@@ -28,9 +28,9 @@ const Login = () => {
 
       alert("Login successful!");
       navigate(
-        role === "admin" ? "/admin-dashboard" :
-        role === "vendor" ? "/vendor-dashboard" :
-        "/user-dashboard"
+        role === "admin" ? "/admin" :
+        role === "vendor" ? "/vendor" :
+        "/user"
       );
     } catch (error) {
       alert(error.response?.data?.message || "Login failed.");
