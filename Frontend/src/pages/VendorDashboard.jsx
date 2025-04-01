@@ -1,77 +1,83 @@
 // src/pages/VendorDashboard.jsx
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import axios from "axios";
+import VendorProfile from "../components/VendorProfile";
 
 function VendorDashboard() {
   const [vendor, setVendor] = useState(null);
   const [bookingInfo, setBookingInfo] = useState(null);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [attendanceMarked, setAttendanceMarked] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
+  const fetchVendorAndBooking = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    console.log("Token in VendorDashboard:", token);
+    if (!token) {
+      setError("No authentication token found. Please log in.");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Fetch vendor details
+      const vendorRes = await axios.get(
+        `http://localhost:5000/api/vendors/me?t=${Date.now()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      console.log(
+        "Fetched vendor data:",
+        JSON.stringify(vendorRes.data, null, 2)
+      );
+      setVendor(vendorRes.data);
+
+      // Check if attendance was marked today
+      const lastAttendance = vendorRes.data.lastAttendance
+        ? new Date(vendorRes.data.lastAttendance)
+        : null;
+      const today = new Date();
+      const isToday =
+        lastAttendance &&
+        lastAttendance.getDate() === today.getDate() &&
+        lastAttendance.getMonth() === today.getMonth() &&
+        lastAttendance.getFullYear() === today.getFullYear();
+      setAttendanceMarked(isToday);
+
+      // Fetch booking info (stall associated with this vendor)
+      const stallRes = await axios.get(
+        `http://localhost:5000/api/stalls/by-vendor/${
+          vendorRes.data._id
+        }?t=${Date.now()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      console.log(
+        "Fetched booking info:",
+        JSON.stringify(stallRes.data, null, 2)
+      );
+      setBookingInfo(stallRes.data);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching data:", err.response?.data || err);
+      setError(
+        "Failed to load dashboard data: " +
+          (err.response?.data?.message || err.message)
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [navigate]);
+
   useEffect(() => {
-    const fetchVendorAndBooking = async () => {
-      const token = localStorage.getItem("token");
-      console.log("Token in VendorDashboard:", token);
-      if (!token) {
-        setError("No authentication token found. Please log in.");
-        navigate("/login");
-        return;
-      }
-
-      try {
-        // Fetch vendor details
-        const vendorRes = await axios.get(
-          `http://localhost:5000/api/vendors/me?t=${Date.now()}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        console.log(
-          "Fetched vendor data:",
-          JSON.stringify(vendorRes.data, null, 2)
-        );
-        setVendor(vendorRes.data);
-
-        // Check if attendance was marked today
-        const lastAttendance = vendorRes.data.lastAttendance
-          ? new Date(vendorRes.data.lastAttendance)
-          : null;
-        const today = new Date();
-        const isToday =
-          lastAttendance &&
-          lastAttendance.getDate() === today.getDate() &&
-          lastAttendance.getMonth() === today.getMonth() &&
-          lastAttendance.getFullYear() === today.getFullYear();
-        setAttendanceMarked(isToday);
-
-        // Fetch booking info (stall associated with this vendor)
-        const stallRes = await axios.get(
-          `http://localhost:5000/api/stalls/by-vendor/${
-            vendorRes.data._id
-          }?t=${Date.now()}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        console.log(
-          "Fetched booking info:",
-          JSON.stringify(stallRes.data, null, 2)
-        );
-        setBookingInfo(stallRes.data);
-      } catch (err) {
-        console.error("Error fetching data:", err.response?.data || err);
-        setError(
-          "Failed to load dashboard data: " +
-            (err.response?.data?.message || err.message)
-        );
-      }
-    };
-
     fetchVendorAndBooking();
-  }, [navigate, location]);
+  }, [fetchVendorAndBooking, location.pathname]);
 
   const markAttendance = async () => {
     try {
@@ -112,11 +118,34 @@ function VendorDashboard() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
+
+  const handleRetry = () => {
+    fetchVendorAndBooking();
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-lg mt-6">
       <h2 className="text-2xl font-bold text-center mb-6">Vendor Dashboard</h2>
-      {error && <p className="text-red-500">{error}</p>}
-      {vendor ? (
+
+      {error && (
+        <div className="text-red-500 text-center">
+          <p>{error}</p>
+          <button
+            className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded"
+            onClick={handleRetry}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {loading && !vendor ? (
+        <p className="text-center text-gray-600">Loading vendor details...</p>
+      ) : vendor ? (
         <div className="space-y-4">
           <div className="bg-gray-100 p-4 rounded-lg">
             <h3 className="text-xl font-semibold text-gray-800">
@@ -138,13 +167,35 @@ function VendorDashboard() {
                 ? new Date(vendor.lastAttendance).toLocaleString()
                 : "Not marked"}
             </p>
+            <p>
+              <strong>License Status:</strong>{" "}
+              <span
+                className={`${
+                  vendor.license?.status === "not issued"
+                    ? "text-gray-500"
+                    : vendor.license?.status === "requested"
+                    ? "text-yellow-500"
+                    : vendor.license?.status === "completed"
+                    ? "text-green-500"
+                    : "text-blue-500" // For "issued" if applicable
+                } font-semibold`}
+              >
+                {vendor.license?.status === "not issued"
+                  ? "Not Issued"
+                  : vendor.license?.status === "requested"
+                  ? "Requested"
+                  : vendor.license?.status === "completed"
+                  ? "Completed"
+                  : "Issued"}
+              </span>
+            </p>
           </div>
 
-          <div className="bg-gray-100 p-4 rounded-lg">
-            <h3 className="text-xl font-semibold text-gray-800">
-              Booking Information
-            </h3>
-            {bookingInfo ? (
+          {bookingInfo && (
+            <div className="bg-gray-100 p-4 rounded-lg">
+              <h3 className="text-xl font-semibold text-gray-800">
+                Booking Information
+              </h3>
               <div>
                 <p>
                   <strong>Stall Name:</strong> {bookingInfo.name}
@@ -164,10 +215,35 @@ function VendorDashboard() {
                   Cancel Stall Booking
                 </button>
               </div>
-            ) : (
-              <p>No stall booked yet. Go to Find Spaces to book a stall.</p>
-            )}
-          </div>
+            </div>
+          )}
+
+          <Link
+            to="/vendor/location"
+            className="block text-center bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+          >
+            Manage Location
+          </Link>
+
+          <Link
+            to="/vendor/license"
+            className="block text-center bg-green-500 text-white p-2 rounded hover:bg-green-600"
+          >
+            {vendor.license?.status === "completed"
+              ? "View License"
+              : "Apply for License"}
+          </Link>
+
+          {vendor.isProfileComplete ? (
+            <VendorProfile vendor={vendor} />
+          ) : (
+            <button
+              className="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md"
+              onClick={() => navigate("/complete-profile")}
+            >
+              Complete Profile
+            </button>
+          )}
 
           <button
             className={`w-full py-2 rounded-md text-white font-semibold ${
@@ -180,10 +256,15 @@ function VendorDashboard() {
           >
             {attendanceMarked ? "Attendance Marked" : "Mark Attendance"}
           </button>
+
+          <button
+            className="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md mt-4"
+            onClick={handleLogout}
+          >
+            Logout
+          </button>
         </div>
-      ) : (
-        <p className="text-center text-gray-600">Loading vendor details...</p>
-      )}
+      ) : null}
     </div>
   );
 }

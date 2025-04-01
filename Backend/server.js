@@ -1,5 +1,6 @@
 // backend/server.js
 const express = require("express");
+const path = require("path");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -8,9 +9,11 @@ const vendorRoutes = require("./routes/vendorRoutes"); // Ensure this matches th
 const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/authRoutes");
 
+
 dotenv.config();
 
 const app = express();
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use(cors());
 app.use(express.json());

@@ -12,6 +12,8 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.0.15",
     "axios": "^1.8.4",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
     "leaflet": "^1.9.4",
     "leaflet-defaulticon-compatibility": "^0.1.2",
     "react": "^19.0.0",

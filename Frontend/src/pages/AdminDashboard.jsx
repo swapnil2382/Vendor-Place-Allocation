@@ -12,6 +12,8 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import LicenseReview from "../components/LicenseReview";
+import CompletedLicense from "../components/CompletedLicense";
 
 // Custom icons
 const vendorIcon = L.icon({
@@ -42,6 +44,8 @@ function AdminDashboard() {
   const [bulkPlacement, setBulkPlacement] = useState(false);
   const [bulkStart, setBulkStart] = useState(null);
   const [bulkEnd, setBulkEnd] = useState(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showCompletedModal, setShowCompletedModal] = useState(false);
 
   // Fetch vendors and stalls
   useEffect(() => {
@@ -77,6 +81,43 @@ function AdminDashboard() {
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // License management
+  const handleLicenseClick = (vendor) => {
+    if (vendor.license.status === "not issued") return; // Prevent clicking on "Not Issued"
+
+    setSelectedVendor(vendor);
+    if (vendor.license.status === "requested") {
+      setShowReviewModal(true);
+    } else if (vendor.license.status === "completed") {
+      setShowCompletedModal(true);
+    }
+  };
+
+  const handleApprove = async (vendorId) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(
+        `http://localhost:5000/api/admin/approve-license/${vendorId}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setVendors((prevVendors) =>
+        prevVendors.map((v) =>
+          v._id === vendorId
+            ? { ...v, license: { ...v.license, status: "completed" } }
+            : v
+        )
+      );
+
+      setShowReviewModal(false);
+      setSelectedVendor(null);
+    } catch (error) {
+      console.error("Error approving license:", error);
+      alert("❌ Failed to approve license.");
+    }
+  };
 
   // Reset all stalls
   const resetStalls = async () => {
@@ -326,6 +367,40 @@ function AdminDashboard() {
     <div className="p-5">
       <h2 className="text-2xl font-bold text-gray-800">Admin Dashboard</h2>
 
+      {/* License Management Section */}
+      <div className="mt-4">
+        <h3 className="font-semibold text-gray-700">Vendor Licenses</h3>
+        <ul>
+          {vendors.map((vendor) => (
+            <li key={vendor._id} className="p-2 border-b flex justify-between">
+              <span>
+                {vendor.name} - {vendor.shopID}
+              </span>
+              <span
+                className={`px-2 py-1 rounded cursor-pointer ${
+                  vendor.license?.status === "not issued"
+                    ? "bg-gray-400 text-white cursor-not-allowed"
+                    : vendor.license?.status === "requested"
+                    ? "bg-yellow-500 text-white"
+                    : vendor.license?.status === "issued"
+                    ? "bg-blue-500 text-white"
+                    : "bg-green-500 text-white"
+                }`}
+                onClick={() => handleLicenseClick(vendor)}
+              >
+                {vendor.license?.status === "not issued"
+                  ? "Not Issued"
+                  : vendor.license?.status === "requested"
+                  ? "Requested"
+                  : vendor.license?.status === "issued"
+                  ? "Issued"
+                  : "Completed"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
       {/* Reset Stalls Button */}
       <div className="mt-4">
         <button
@@ -477,9 +552,11 @@ function AdminDashboard() {
         </MapContainer>
       </div>
 
-      {/* Vendor List */}
+      {/* Vendor List for Location Assignment */}
       <div className="mt-4">
-        <h3 className="font-semibold text-gray-700">All Vendors:</h3>
+        <h3 className="font-semibold text-gray-700">
+          Assign Vendor Locations:
+        </h3>
         <ul className="mt-2">
           {vendors.map((vendor) => (
             <li
@@ -499,6 +576,28 @@ function AdminDashboard() {
           ))}
         </ul>
       </div>
+
+      {/* Modals */}
+      {showReviewModal && selectedVendor && (
+        <LicenseReview
+          vendor={selectedVendor}
+          closeModal={() => {
+            setShowReviewModal(false);
+            setSelectedVendor(null);
+          }}
+          onApprove={handleApprove}
+        />
+      )}
+
+      {showCompletedModal && selectedVendor && (
+        <CompletedLicense
+          vendor={selectedVendor}
+          closeModal={() => {
+            setShowCompletedModal(false);
+            setSelectedVendor(null);
+          }}
+        />
+      )}
     </div>
   );
 }

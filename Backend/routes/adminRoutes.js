@@ -8,7 +8,7 @@ const { protectAdmin } = require("../middleware/authMiddleware");
 // Get all vendors
 router.get("/vendors", protectAdmin, async (req, res) => {
   try {
-    const vendors = await Vendor.find();
+    const vendors = await Vendor.find().select("name shopID category license");
     res.json(vendors);
   } catch (error) {
     console.error("Error fetching vendors:", error);
@@ -19,13 +19,24 @@ router.get("/vendors", protectAdmin, async (req, res) => {
 // Reallocate vendor location
 router.post("/reallocate/:vendorId", protectAdmin, async (req, res) => {
   try {
-    const { location } = req.body;
     const vendor = await Vendor.findById(req.params.vendorId);
     if (!vendor) return res.status(404).json({ message: "Vendor not found" });
 
-    vendor.location = location;
-    await vendor.save();
+    // Handle both location formats
+    if (req.body.location) {
+      if (typeof req.body.location === "string") {
+        vendor.location = req.body.location;
+      } else if (req.body.location.latitude && req.body.location.longitude) {
+        vendor.gpsLocation = {
+          latitude: req.body.location.latitude,
+          longitude: req.body.location.longitude,
+        };
+        // Update string format for backward compatibility
+        vendor.gpsCoordinates = `${req.body.location.latitude},${req.body.location.longitude}`;
+      }
+    }
 
+    await vendor.save();
     res.json({ message: "Vendor location updated successfully" });
   } catch (error) {
     console.error("Error reallocating vendor:", error);
