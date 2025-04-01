@@ -1,3 +1,4 @@
+// backend/models/Vendor.js
 const mongoose = require("mongoose");
 
 const VendorSchema = new mongoose.Schema(
@@ -24,10 +25,23 @@ const VendorSchema = new mongoose.Schema(
     isProfileComplete: { type: Boolean, default: false },
     preferredMarketArea: { type: String, default: "" },
     location: {
+      type: String,
+      required: true,
+      // Adding compatibility with the new location structure
+      _v1Compatibility: true,
+    },
+    // New location structure
+    gpsLocation: {
       latitude: { type: Number, default: null },
       longitude: { type: Number, default: null },
     },
-    spotType: { type: String, enum: ["Permanent", "Temporary"], default: "Temporary" },
+    gpsCoordinates: { type: String, default: "" }, // Keep for backward compatibility
+    lastAttendance: { type: Date }, // Added from original schema
+    spotType: {
+      type: String,
+      enum: ["Permanent", "Temporary"],
+      default: "Temporary",
+    },
     alternateSpot: { type: String, default: "" },
     products: [
       {
@@ -67,7 +81,11 @@ const VendorSchema = new mongoose.Schema(
         userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         product: { type: String, required: true },
         quantity: { type: Number, required: true, min: 1 },
-        status: { type: String, enum: ["Pending", "Completed"], default: "Pending" },
+        status: {
+          type: String,
+          enum: ["Pending", "Completed"],
+          default: "Pending",
+        },
         orderedAt: { type: Date, default: Date.now },
       },
     ],

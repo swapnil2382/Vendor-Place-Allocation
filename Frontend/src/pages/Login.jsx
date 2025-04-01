@@ -1,14 +1,15 @@
+// src/pages/Login.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { useAuth } from "../context/AuthContext"; // Import useAuth
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("vendor"); // Default to vendor login
   const navigate = useNavigate();
-  const { login } = useAuth(); // Use AuthContext
+  const { login } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -28,9 +29,7 @@ const Login = () => {
 
       alert("Login successful!");
       navigate(
-        role === "admin" ? "/admin" :
-        role === "vendor" ? "/vendor" :
-        "/user"
+        role === "admin" ? "/admin" : role === "vendor" ? "/vendor" : "/user"
       );
     } catch (error) {
       alert(error.response?.data?.message || "Login failed.");
@@ -38,61 +37,78 @@ const Login = () => {
   };
 
   return (
-    <div className="container">
-      <h2>Login</h2>
+    <div className="container mx-auto max-w-md p-6 bg-white rounded shadow-md">
+      <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
 
       {/* Role Selection */}
-      <div className="role-selection">
-        <label>
+      <div className="mb-4 flex justify-around">
+        <label className="inline-flex items-center">
           <input
             type="radio"
             value="vendor"
             checked={role === "vendor"}
             onChange={() => setRole("vendor")}
+            className="form-radio h-5 w-5 text-blue-600"
           />
-          Vendor
+          <span className="ml-2">Vendor</span>
         </label>
-        <label>
+        <label className="inline-flex items-center">
           <input
             type="radio"
             value="user"
             checked={role === "user"}
             onChange={() => setRole("user")}
+            className="form-radio h-5 w-5 text-blue-600"
           />
-          User
+          <span className="ml-2">User</span>
         </label>
-        <label>
+        <label className="inline-flex items-center">
           <input
             type="radio"
             value="admin"
             checked={role === "admin"}
             onChange={() => setRole("admin")}
+            className="form-radio h-5 w-5 text-blue-600"
           />
-          Admin
+          <span className="ml-2">Admin</span>
         </label>
       </div>
 
-      <form onSubmit={handleLogin}>
-        <input
-          type="text"
-          placeholder={role === "admin" ? "Admin Username" : "Email"}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit">Login</button>
+      <form onSubmit={handleLogin} className="space-y-4">
+        <div>
+          <input
+            type="text"
+            placeholder={role === "admin" ? "Admin Username" : "Email"}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+          >
+            Login
+          </button>
+        </div>
       </form>
 
-      {/* Small text for registration */}
-      <p className="mt-3 text-sm">
-        Don’t have an account?{" "}
+      <p className="mt-6 text-center text-sm text-gray-600">
+        Don't have an account?{" "}
         <span
-          className="text-blue-500 cursor-pointer underline"
+          className="text-blue-500 cursor-pointer hover:underline"
           onClick={() => navigate("/register")}
         >
           Register
