@@ -1,28 +1,82 @@
-// backend/server.js
+require("dotenv").config(); // Load environment variables first
 const express = require("express");
 const path = require("path");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const dotenv = require("dotenv");
+const fs = require("fs");
 const stallRoutes = require("./routes/stalls");
-const vendorRoutes = require("./routes/vendorRoutes"); // Ensure this matches the filename
+const vendorRoutes = require("./routes/vendorRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/authRoutes");
 
-
-dotenv.config();
-
 const app = express();
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
+// Create directories for static files
+const publicDir = path.join(__dirname, "public");
+const imagesDir = path.join(publicDir, "images");
+const uploadsDir = path.join(__dirname, "uploads");
+
+const ensureDirectoryExists = (dir) => {
+  if (!fs.existsSync(dir)) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`Created directory: ${dir}`);
+    } catch (err) {
+      console.error(`Failed to create directory ${dir}:`, err);
+    }
+  }
+};
+
+[publicDir, imagesDir, uploadsDir].forEach(ensureDirectoryExists);
+
+// Create placeholder images
+const placeholderPath = path.join(imagesDir, "placeholder.png");
+const govtEmblemPath = path.join(imagesDir, "govt-emblem.png");
+const officialSealPath = path.join(imagesDir, "official-seal.png");
+
+// Minimal 1x1 transparent PNG (base64 encoded)
+const minimalPNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+  "base64"
+);
+
+const createBasicImageIfNeeded = (filePath, label) => {
+  if (!fs.existsSync(filePath)) {
+    console.log(`Creating ${label} image at ${filePath}`);
+    try {
+      fs.writeFileSync(filePath, minimalPNG);
+      console.log(`Created ${label} image at ${filePath}`);
+    } catch (error) {
+      console.error(`Failed to create ${label} image at ${filePath}:`, error);
+    }
+  }
+};
+
+createBasicImageIfNeeded(placeholderPath, "placeholder");
+createBasicImageIfNeeded(govtEmblemPath, "government emblem");
+createBasicImageIfNeeded(officialSealPath, "official seal");
+
+// Serve static files
+app.use("/uploads", express.static(uploadsDir));
+app.use("/images", express.static(imagesDir));
+app.use("/public", express.static(publicDir));
+
+// API routes
 app.use("/api/stalls", stallRoutes);
 app.use("/api/vendors", vendorRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
 
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", message: "Server is running" });
+});
+
+// Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
@@ -31,6 +85,7 @@ mongoose
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
+// Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

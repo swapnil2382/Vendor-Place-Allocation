@@ -1,30 +1,46 @@
-// src/hooks/useFetchStalls.js
+// src/hooks/useFetchStalls.jsx
 import { useState, useEffect } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const useFetchStalls = () => {
   const [stalls, setStalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchStalls = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/stalls");
-        if (!response.ok) throw new Error("Failed to fetch stalls");
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.warn("No token found, redirecting to login");
+          setError("Please log in to view stalls");
+          navigate("/login");
+          return;
+        }
 
-        const data = await response.json();
-        console.log("Fetched Stalls:", data);
-        setStalls(data);
+        const response = await axios.get("http://localhost:5000/api/stalls", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setStalls(response.data);
+        setLoading(false);
       } catch (err) {
         console.error("Error fetching stalls:", err);
-        setError(err.message);
-      } finally {
+        const errorMessage =
+          err.response?.data?.message ||
+          err.message ||
+          "Failed to fetch stalls";
+        setError(errorMessage);
+        if (err.response?.status === 401) {
+          navigate("/login");
+        }
         setLoading(false);
       }
     };
 
     fetchStalls();
-  }, []);
+  }, [navigate]);
 
   return { stalls, loading, error };
 };

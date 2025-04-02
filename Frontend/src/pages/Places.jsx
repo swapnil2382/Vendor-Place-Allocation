@@ -1,4 +1,3 @@
-// src/pages/Places.jsx
 import { useState, useEffect } from "react";
 import {
   MapContainer,
@@ -18,7 +17,7 @@ const Places = () => {
   const [error, setError] = useState(null);
   const [selectedStall, setSelectedStall] = useState(null);
   const [bookingReceipt, setBookingReceipt] = useState(null);
-  const [bookingError, setBookingError] = useState(null); // New state for booking error
+  const [bookingError, setBookingError] = useState(null);
   const navigate = useNavigate();
 
   const metersToLatLng = (meters) => meters / 111000;
@@ -57,7 +56,7 @@ const Places = () => {
     }
   };
 
-  const confirmBooking = async () => {
+  const confirmBooking = () => {
     const token = localStorage.getItem("token");
     console.log(
       "Confirming booking for stall:",
@@ -71,38 +70,9 @@ const Places = () => {
       return;
     }
 
-    try {
-      const response = await axios.post(
-        `http://localhost:5000/api/vendors/claim-stall/${selectedStall._id}`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      console.log("Stall booked response:", response.data);
-      setBookingReceipt({
-        stallName: response.data.stall.name,
-        coordinates: `${response.data.stall.lat},${response.data.stall.lng}`,
-        bookingDate: new Date().toLocaleString(),
-        vendorId: response.data.stall.vendorID,
-      });
-      setStalls((prevStalls) =>
-        prevStalls.map((stall) =>
-          stall._id === selectedStall._id ? { ...stall, taken: true } : stall
-        )
-      );
-      setSelectedStall(null);
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message;
-      console.error("Error booking stall:", err.response?.data || err);
-      if (err.response?.status === 400 && err.response?.data?.currentStall) {
-        setBookingError({
-          message: errorMessage,
-          currentStall: err.response.data.currentStall,
-        });
-      } else {
-        setError("Failed to book stall: " + errorMessage);
-        setSelectedStall(null);
-      }
-    }
+    // Redirect to payment page instead of directly booking
+    navigate("/payment", { state: { stallId: selectedStall._id } });
+    setSelectedStall(null); // Close the confirmation modal
   };
 
   const MapEvents = () => {
@@ -162,7 +132,7 @@ const Places = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96 z-50">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Confirm Stall Booking
+              Confirm Stall Selection
             </h2>
             <p>
               <strong>Stall Name:</strong> {selectedStall.name}
@@ -185,7 +155,7 @@ const Places = () => {
               </div>
             ) : (
               <p className="text-sm text-gray-500 mt-2">
-                Click "Confirm" to book this stall.
+                Click "Confirm" to proceed to payment and book this stall.
               </p>
             )}
             <div className="mt-6 flex justify-end space-x-4">
@@ -203,7 +173,7 @@ const Places = () => {
                   className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
                   onClick={confirmBooking}
                 >
-                  Confirm Booking
+                  Confirm
                 </button>
               )}
             </div>
@@ -246,7 +216,7 @@ const Places = () => {
                 })
               }
             >
-              Go to Dashboard
+              -Go to Dashboard
             </button>
           </div>
         </div>

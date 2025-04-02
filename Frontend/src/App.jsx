@@ -13,6 +13,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import CompleteProfile from "./pages/CompleteProfile";
 import Places from "./pages/Places";
+import PaymentPage from "./pages/PaymentPage"; // Import the new PaymentPage
 
 function App() {
   return (
@@ -35,6 +36,8 @@ function App() {
               element={<LicenseApplicationPage />}
             />
             <Route path="/places" element={<Places />} />
+            <Route path="/payment" element={<PaymentPage />} />{" "}
+            {/* New Payment Route */}
           </Route>
 
           {/* Protected Admin Routes */}

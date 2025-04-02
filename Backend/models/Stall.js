@@ -6,6 +6,7 @@ const stallSchema = new mongoose.Schema({
   lat: { type: Number, required: true },
   lng: { type: Number, required: true },
   taken: { type: Boolean, default: false },
+  bookingTime: { type: Date, default: null },
   vendorID: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Vendor",

@@ -1,4 +1,3 @@
-// src/pages/StallSelectionMap.jsx
 import { useState, useEffect } from "react";
 import {
   MapContainer,
@@ -43,29 +42,16 @@ const StallSelectionMap = () => {
     fetchStalls();
   }, []);
 
-  const claimStall = async (stallId) => {
+  const claimStall = (stallId) => {
     const token = localStorage.getItem("token");
-    console.log("Claiming stall with token:", token); // Debug
+    console.log("Attempting to claim stall with token:", token); // Debug
     if (!token) {
       setError("Please log in to claim a stall");
       navigate("/login");
       return;
     }
-
-    try {
-      const response = await axios.post(
-        `http://localhost:5000/api/vendors/claim-stall/${stallId}`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      console.log("Stall claimed:", response.data);
-      navigate("/vendor-dashboard");
-    } catch (err) {
-      setError(
-        "Failed to claim stall: " + (err.response?.data?.message || err.message)
-      );
-      console.error("Error claiming stall:", err);
-    }
+    // Redirect to payment page with stallId in state
+    navigate("/payment", { state: { stallId } });
   };
 
   const MapEvents = () => {
@@ -81,7 +67,9 @@ const StallSelectionMap = () => {
   return (
     <div className="min-h-screen flex flex-col items-center p-6">
       <h1 className="text-2xl font-bold mb-4">Select Your Stall</h1>
-      <p className="mb-4">Click an available (red) stall to claim it</p>
+      <p className="mb-4">
+        Click an available (red) stall to proceed to payment
+      </p>
       <div className="w-full max-w-5xl h-[600px] shadow-lg rounded-lg overflow-hidden">
         <MapContainer
           center={center}
