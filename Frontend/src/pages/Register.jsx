@@ -1,4 +1,3 @@
-// src/pages/Register.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -56,16 +55,20 @@ const Register = () => {
             phone: formData.phone,
           };
 
+    const url = `http://localhost:5000/api/auth${endpoint}?lang=${i18n.language}`;
+    console.log("Submitting to:", url, "with data:", payload); // Debug log
+
     try {
-      const response = await axios.post(
-        `http://localhost:5000/api/auth${endpoint}?lang=${i18n.language}`,
-        payload
-      );
+      const response = await axios.post(url, payload);
+      console.log("Registration response:", response.data); // Debug log
+
       const token = response.data.token;
       if (token) localStorage.setItem("token", token);
+
       alert(response.data.message);
       navigate(role === "vendor" ? "/vendor-dashboard" : "/login");
     } catch (err) {
+      console.error("Registration error:", err.response?.data || err.message);
       const errorMessage = err.response?.data?.message || "Registration failed";
       setError(errorMessage);
       alert(t("error", { message: errorMessage }));

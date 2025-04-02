@@ -1,13 +1,16 @@
+// src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(localStorage.getItem("token") || null);
-  const [role, setRole] = useState(localStorage.getItem("role") || null);
+  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [role, setRole] = useState(localStorage.getItem("role"));
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Sync localStorage with state
+    console.log("AuthContext - Token updated:", token, "Role:", role);
     if (token) {
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
@@ -18,13 +21,18 @@ export const AuthProvider = ({ children }) => {
   }, [token, role]);
 
   const login = (newToken, newRole) => {
+    console.log("Logging in - Token:", newToken, "Role:", newRole);
     setToken(newToken);
     setRole(newRole);
   };
 
   const logout = () => {
+    console.log("Logging out");
     setToken(null);
     setRole(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    navigate("/login");
   };
 
   return (

@@ -1,4 +1,4 @@
-// src/components/Navbar.jsx
+// frontend/src/components/Navbar.jsx
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 function Navbar() {
   const { t, i18n } = useTranslation();
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState(localStorage.getItem("role")); // Initialize from localStorage
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,7 +20,7 @@ function Navbar() {
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
-      if (!token) return;
+      if (!token || !role) return;
 
       try {
         let res;
@@ -38,19 +38,31 @@ function Navbar() {
               headers: { Authorization: `Bearer ${token}` },
             }
           );
+        } else if (role === "admin") {
+          // Add admin endpoint if needed
+          return;
         }
         if (res?.data) {
           setUser(res.data);
+          console.log("User fetched for Navbar:", res.data); // Debugging
         }
       } catch (err) {
-        console.error("Error fetching user:", err.response?.data || err);
-        localStorage.removeItem("token");
-        setRole(null);
+        console.error(
+          "Error fetching user:",
+          err.response?.data || err.message
+        );
+        if (err.response?.status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("role");
+          setUser(null);
+          setRole(null);
+          navigate("/login");
+        }
       }
     };
 
     fetchUser();
-  }, [role, i18n.language]);
+  }, [role, i18n.language, navigate]); // Added navigate to dependency array
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -126,7 +138,9 @@ function Navbar() {
                     </Link>
                   </>
                 )}
-                <span className="text-white">{user?.name || "User"}</span>
+                <span className="text-white">
+                  {user?.name || user?.username || "User"}
+                </span>
                 <img
                   src="https://via.placeholder.com/40"
                   alt="Profile"

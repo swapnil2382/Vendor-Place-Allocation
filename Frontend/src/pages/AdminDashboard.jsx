@@ -14,8 +14,9 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import LicenseReview from "../components/LicenseReview";
 import CompletedLicense from "../components/CompletedLicense";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
-// Custom icons
 const vendorIcon = L.icon({
   iconUrl: "https://cdn-icons-png.flaticon.com/128/684/684908.png",
   iconSize: [32, 32],
@@ -35,6 +36,8 @@ const stallIcon = (taken) =>
   });
 
 function AdminDashboard() {
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [vendors, setVendors] = useState([]);
   const [stalls, setStalls] = useState([]);
   const [selectedVendor, setSelectedVendor] = useState(null);
@@ -46,46 +49,83 @@ function AdminDashboard() {
   const [bulkEnd, setBulkEnd] = useState(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showCompletedModal, setShowCompletedModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Fetch vendors and stalls
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setMessage(t("auth_required"));
+      setError("Authentication required");
+      navigate("/login");
+    }
+  }, [navigate, t]);
+
+  const api = axios.create({
+    baseURL: "http://localhost:5000/api",
+  });
+
+  api.interceptors.request.use(
+    (config) => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
+
+  api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const originalRequest = error.config;
+      if (
+        error.response &&
+        error.response.status === 401 &&
+        !originalRequest._retry
+      ) {
+        originalRequest._retry = true;
+        console.log("Current token:", localStorage.getItem("token"));
+        localStorage.removeItem("token");
+        setMessage(t("auth_required"));
+        navigate("/login");
+        return Promise.reject(error);
+      }
+      return Promise.reject(error);
+    }
+  );
+
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
+      if (!localStorage.getItem("token")) return;
 
-        // Fetch vendors
-        const vendorRes = await axios.get(
-          "http://localhost:5000/api/admin/vendors",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+      setIsLoading(true);
+      try {
+        const vendorRes = await api.get(`/admin/vendors?lang=${i18n.language}`);
         setVendors(vendorRes.data);
 
-        // Fetch stalls
-        const stallRes = await axios.get(
-          "http://localhost:5000/api/admin/stalls",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const stallRes = await api.get(`/admin/stalls?lang=${i18n.language}`);
         setStalls(stallRes.data);
+
+        setError(null);
       } catch (error) {
         console.error("Error fetching data:", error);
+        if (error.response?.status !== 401) {
+          setError(t("error_fetching_data"));
+        }
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchData();
-
-    // Polling for live updates (every 10 seconds)
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [i18n.language]);
 
-  // License management
   const handleLicenseClick = (vendor) => {
-    if (vendor.license.status === "not issued") return; // Prevent clicking on "Not Issued"
-
+    if (vendor.license.status === "not issued") return;
     setSelectedVendor(vendor);
     if (vendor.license.status === "requested") {
       setShowReviewModal(true);
@@ -96,13 +136,7 @@ function AdminDashboard() {
 
   const handleApprove = async (vendorId) => {
     try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        `http://localhost:5000/api/admin/approve-license/${vendorId}`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
+      await api.post(`/admin/approve-license/${vendorId}`);
       setVendors((prevVendors) =>
         prevVendors.map((v) =>
           v._id === vendorId
@@ -110,85 +144,56 @@ function AdminDashboard() {
             : v
         )
       );
-
       setShowReviewModal(false);
       setSelectedVendor(null);
+      setMessage(t("license_approved"));
+      setTimeout(() => setMessage(""), 5000);
     } catch (error) {
       console.error("Error approving license:", error);
-      alert("❌ Failed to approve license.");
+      if (error.response?.status !== 401) {
+        setMessage(t("error_approving_license"));
+      }
     }
   };
 
-  // Reset all stalls
   const resetStalls = async () => {
-    if (
-      window.confirm(
-        "Are you sure you want to reset all stalls? This will clear all bookings."
-      )
-    ) {
+    if (window.confirm(t("confirm_reset"))) {
       try {
-        const token = localStorage.getItem("token");
-        const res = await axios.post(
-          "http://localhost:5000/api/admin/reset-stalls",
-          {},
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await api.post("/admin/reset-stalls");
         setMessage(res.data.message);
         setTimeout(() => setMessage(""), 5000);
-        // Refresh stalls
-        const stallRes = await axios.get(
-          "http://localhost:5000/api/admin/stalls",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const stallRes = await api.get("/admin/stalls");
         setStalls(stallRes.data);
       } catch (error) {
-        setMessage(
-          "Error: " + (error.response?.data?.message || error.message)
-        );
+        if (error.response?.status !== 401) {
+          setMessage(t("error_resetting_stalls"));
+        }
         console.error("Error resetting stalls:", error);
       }
     }
   };
 
-  // Clear all stalls
   const clearAllStalls = async () => {
-    if (
-      window.confirm(
-        "Are you sure you want to clear all stalls? This will delete all stalls from the map."
-      )
-    ) {
+    if (window.confirm(t("confirm_clear"))) {
       try {
-        const token = localStorage.getItem("token");
-        const res = await axios.delete(
-          "http://localhost:5000/api/admin/clear-stalls",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const res = await api.delete("/admin/clear-stalls");
         setMessage(res.data.message);
         setTimeout(() => setMessage(""), 5000);
-        setStalls([]); // Clear stalls from the UI
+        setStalls([]);
       } catch (error) {
-        setMessage(
-          "Error: " + (error.response?.data?.message || error.message)
-        );
+        if (error.response?.status !== 401) {
+          setMessage(t("error_clearing_stalls"));
+        }
         console.error("Error clearing stalls:", error);
       }
     }
   };
 
-  // Update vendor location
   const updateVendorLocation = async (vendorId, newLocation) => {
     try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        `http://localhost:5000/api/admin/reallocate/${vendorId}`,
-        { location: newLocation },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
+      await api.post(`/admin/reallocate/${vendorId}`, {
+        location: newLocation,
+      });
       setVendors((prevVendors) =>
         prevVendors.map((vendor) =>
           vendor._id === vendorId
@@ -196,37 +201,33 @@ function AdminDashboard() {
             : vendor
         )
       );
-
-      alert("Vendor location updated successfully!");
+      setMessage(t("vendor_location_updated"));
+      setTimeout(() => setMessage(""), 5000);
     } catch (error) {
+      if (error.response?.status !== 401) {
+        setMessage(t("error_updating_location"));
+      }
       console.error("Error updating location:", error);
     }
   };
 
-  // Create a new stall
   const createStall = async (lat, lng) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post(
-        "http://localhost:5000/api/admin/create-stall",
-        { lat, lng },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.post("/admin/create-stall", { lat, lng });
       setStalls((prevStalls) => [...prevStalls, res.data]);
+      setMessage(t("stall_created"));
+      setTimeout(() => setMessage(""), 5000);
     } catch (error) {
+      if (error.response?.status !== 401) {
+        setMessage(t("error_creating_stall"));
+      }
       console.error("Error creating stall:", error);
-      setMessage(
-        "Error creating stall: " +
-          (error.response?.data?.message || error.message)
-      );
     }
   };
 
-  // Create multiple stalls (bulk placement)
   const createStallsBulk = async (start, end) => {
     const metersToLatLng = (meters) => meters / 111000;
     const gridStep = metersToLatLng(gridSize);
-
     const minLat = Math.min(start.lat, end.lat);
     const maxLat = Math.max(start.lat, end.lat);
     const minLng = Math.min(start.lng, end.lng);
@@ -240,31 +241,26 @@ function AdminDashboard() {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post(
-        "http://localhost:5000/api/admin/create-stalls-bulk",
-        { stalls: newStalls },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.post("/admin/create-stalls-bulk", {
+        stalls: newStalls,
+      });
       setStalls((prevStalls) => [...prevStalls, ...res.data]);
+      setMessage(t("stalls_created", { count: res.data.length }));
+      setTimeout(() => setMessage(""), 5000);
     } catch (error) {
+      if (error.response?.status !== 401) {
+        setMessage(t("error_creating_bulk_stalls"));
+      }
       console.error("Error creating stalls in bulk:", error);
-      setMessage(
-        "Error creating stalls in bulk: " +
-          (error.response?.data?.message || error.message)
-      );
     }
   };
 
-  // Update stall position
   const updateStallPosition = async (stallId, newPosition) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.put(
-        `http://localhost:5000/api/admin/update-stall/${stallId}`,
-        { lat: newPosition.lat, lng: newPosition.lng },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.put(`/admin/update-stall/${stallId}`, {
+        lat: newPosition.lat,
+        lng: newPosition.lng,
+      });
       setStalls((prevStalls) =>
         prevStalls.map((stall) =>
           stall._id === stallId
@@ -273,37 +269,29 @@ function AdminDashboard() {
         )
       );
     } catch (error) {
+      if (error.response?.status !== 401) {
+        setMessage(t("error_updating_stall_position"));
+      }
       console.error("Error updating stall position:", error);
-      setMessage(
-        "Error updating stall position: " +
-          (error.response?.data?.message || error.message)
-      );
     }
   };
 
-  // Delete a stall
   const deleteStall = async (stallId) => {
     try {
-      const token = localStorage.getItem("token");
-      await axios.delete(
-        `http://localhost:5000/api/admin/delete-stall/${stallId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await api.delete(`/admin/delete-stall/${stallId}`);
       setStalls((prevStalls) =>
         prevStalls.filter((stall) => stall._id !== stallId)
       );
+      setMessage(t("stall_deleted"));
+      setTimeout(() => setMessage(""), 5000);
     } catch (error) {
+      if (error.response?.status !== 401) {
+        setMessage(t("error_deleting_stall"));
+      }
       console.error("Error deleting stall:", error);
-      setMessage(
-        "Error deleting stall: " +
-          (error.response?.data?.message || error.message)
-      );
     }
   };
 
-  // Component to toggle map dragging
   const MapDragToggle = () => {
     const map = useMap();
     useEffect(() => {
@@ -318,7 +306,6 @@ function AdminDashboard() {
     return null;
   };
 
-  // Map event handler for placing stalls and selecting vendor locations
   const MapEvents = () => {
     useMapEvents({
       click(e) {
@@ -363,81 +350,122 @@ function AdminDashboard() {
     return null;
   };
 
+  if (error && error === "Authentication required") {
+    return (
+      <div className="p-5 text-center">
+        <h2 className="text-2xl font-bold text-gray-800">
+          {t("admin_dashboard")}
+        </h2>
+        <div className="mt-8 p-4 bg-red-100 text-red-800 rounded-md">
+          <p>{t("auth_required")}</p>
+          <button
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            onClick={() => navigate("/login")}
+          >
+            {t("go_to_login")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading && vendors.length === 0 && stalls.length === 0) {
+    return (
+      <div className="p-5 text-center">
+        <h2 className="text-2xl font-bold text-gray-800">
+          {t("admin_dashboard")}
+        </h2>
+        <div className="mt-8">
+          <p>{t("loading")}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-5">
-      <h2 className="text-2xl font-bold text-gray-800">Admin Dashboard</h2>
+      <h2 className="text-2xl font-bold text-gray-800">
+        {t("admin_dashboard")}
+      </h2>
 
-      {/* License Management Section */}
+      {message && (
+        <div
+          className={`mt-4 p-2 rounded text-center ${
+            message.includes("Error")
+              ? "bg-red-100 text-red-800"
+              : "bg-green-100 text-green-800"
+          }`}
+        >
+          {message}
+        </div>
+      )}
+
       <div className="mt-4">
-        <h3 className="font-semibold text-gray-700">Vendor Licenses</h3>
-        <ul>
-          {vendors.map((vendor) => (
-            <li key={vendor._id} className="p-2 border-b flex justify-between">
-              <span>
-                {vendor.name} - {vendor.shopID}
-              </span>
-              <span
-                className={`px-2 py-1 rounded cursor-pointer ${
-                  vendor.license?.status === "not issued"
-                    ? "bg-gray-400 text-white cursor-not-allowed"
-                    : vendor.license?.status === "requested"
-                    ? "bg-yellow-500 text-white"
-                    : vendor.license?.status === "issued"
-                    ? "bg-blue-500 text-white"
-                    : "bg-green-500 text-white"
-                }`}
-                onClick={() => handleLicenseClick(vendor)}
+        <h3 className="font-semibold text-gray-700">{t("vendor_licenses")}</h3>
+        {vendors.length === 0 ? (
+          <p className="text-gray-500 mt-2">{t("no_vendors")}</p>
+        ) : (
+          <ul>
+            {vendors.map((vendor) => (
+              <li
+                key={vendor._id}
+                className="p-2 border-b flex justify-between"
               >
-                {vendor.license?.status === "not issued"
-                  ? "Not Issued"
-                  : vendor.license?.status === "requested"
-                  ? "Requested"
-                  : vendor.license?.status === "issued"
-                  ? "Issued"
-                  : "Completed"}
-              </span>
-            </li>
-          ))}
-        </ul>
+                <span>
+                  {vendor.name} - {vendor.shopID}
+                </span>
+                <span
+                  className={`px-2 py-1 rounded cursor-pointer ${
+                    vendor.license?.status === "not issued"
+                      ? "bg-gray-400 text-white cursor-not-allowed"
+                      : vendor.license?.status === "requested"
+                      ? "bg-yellow-500 text-white"
+                      : vendor.license?.status === "issued"
+                      ? "bg-blue-500 text-white"
+                      : "bg-green-500 text-white"
+                  }`}
+                  onClick={() => handleLicenseClick(vendor)}
+                >
+                  {vendor.license?.status === "not issued"
+                    ? t("not_issued")
+                    : vendor.license?.status === "requested"
+                    ? t("requested")
+                    : vendor.license?.status === "issued"
+                    ? t("issued")
+                    : t("completed")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      {/* Reset Stalls Button */}
       <div className="mt-4">
         <button
           className="w-full max-w-xs py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
           onClick={resetStalls}
         >
-          Reset All Stalls
+          {t("reset_stalls")}
         </button>
-        {message && (
-          <p
-            className={`mt-2 text-center ${
-              message.includes("Error") ? "text-red-500" : "text-green-500"
-            }`}
-          >
-            {message}
-          </p>
-        )}
       </div>
 
-      {/* Stall Management Section */}
       <div className="mt-6">
-        <h3 className="font-semibold text-gray-700">Manage Stalls</h3>
+        <h3 className="font-semibold text-gray-700">{t("manage_stalls")}</h3>
         <div className="flex space-x-4 mt-2">
           <div>
-            <label className="mr-2">Placement Mode:</label>
+            <label className="mr-2">{t("placement_mode")}</label>
             <select
               value={placementMode}
               onChange={(e) => setPlacementMode(e.target.value)}
               className="p-1 border rounded"
             >
-              <option value="free">Free Placement</option>
-              <option value="grid">Grid Placement</option>
+              <option value="free">{t("free_placement")}</option>
+              <option value="grid">{t("grid_placement")}</option>
             </select>
           </div>
           {placementMode === "grid" && (
             <div>
-              <label className="mr-2">Grid Size (meters):</label>
+              <label className="mr-2">{t("grid_size")}</label>
               <input
                 type="number"
                 value={gridSize}
@@ -448,7 +476,7 @@ function AdminDashboard() {
             </div>
           )}
           <div>
-            <label className="mr-2">Bulk Placement:</label>
+            <label className="mr-2">{t("bulk_placement")}</label>
             <input
               type="checkbox"
               checked={bulkPlacement}
@@ -461,21 +489,18 @@ function AdminDashboard() {
             className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
             onClick={clearAllStalls}
           >
-            Clear All Stalls
+            {t("clear_stalls")}
           </button>
         </div>
         <p className="mt-2 text-gray-600">
           {bulkPlacement
-            ? "Drag on the map to place multiple stalls in a grid (map dragging is disabled)."
-            : "Click on the map to place a stall. Drag existing stalls to adjust their position."}
+            ? t("bulk_placement_instructions")
+            : t("single_placement_instructions")}
         </p>
       </div>
 
-      {/* Map Section */}
       <div className="mt-6 h-96">
-        <h3 className="font-semibold text-gray-700">
-          Stall and Vendor Locations
-        </h3>
+        <h3 className="font-semibold text-gray-700">{t("stall_locations")}</h3>
         <MapContainer
           center={[19.066435205235848, 72.99389000336194]}
           zoom={18}
@@ -486,8 +511,6 @@ function AdminDashboard() {
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <MapDragToggle />
           <MapEvents />
-
-          {/* Render Stalls */}
           {stalls.map((stall) => (
             <Marker
               key={stall._id}
@@ -503,24 +526,23 @@ function AdminDashboard() {
             >
               <Popup>
                 <strong>{stall.name}</strong> <br />
-                Status: {stall.taken ? "Booked" : "Available"} <br />
+                {t("status")}: {stall.taken ? t("booked") : t("available")}{" "}
+                <br />
                 {stall.taken && stall.vendorID && (
                   <>
-                    Vendor ID: {stall.vendorID} <br />
+                    {t("vendor_id")}: {stall.vendorID} <br />
                   </>
                 )}
-                Coordinates: {stall.lat}, {stall.lng} <br />
+                {t("coordinates")}: {stall.lat}, {stall.lng} <br />
                 <button
                   className="mt-2 px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
                   onClick={() => deleteStall(stall._id)}
                 >
-                  Delete Stall
+                  {t("delete_stall")}
                 </button>
               </Popup>
             </Marker>
           ))}
-
-          {/* Render Vendors */}
           {vendors
             .filter((vendor) => vendor.location?.lat && vendor.location?.lng)
             .map((vendor) => (
@@ -531,14 +553,12 @@ function AdminDashboard() {
               >
                 <Popup>
                   <strong>{vendor.name}</strong> <br />
-                  Shop ID: {vendor.shopID} <br />
-                  Category: {vendor.category} <br />
-                  Location: {vendor.location.lat}, {vendor.location.lng}
+                  {t("shop_id")}: {vendor.shopID} <br />
+                  {t("category")}: {vendor.category} <br />
+                  {t("location")}: {vendor.location.lat}, {vendor.location.lng}
                 </Popup>
               </Marker>
             ))}
-
-          {/* Bulk Placement Rectangle */}
           {bulkStart && bulkEnd && (
             <Rectangle
               bounds={[
@@ -552,32 +572,34 @@ function AdminDashboard() {
         </MapContainer>
       </div>
 
-      {/* Vendor List for Location Assignment */}
       <div className="mt-4">
-        <h3 className="font-semibold text-gray-700">
-          Assign Vendor Locations:
-        </h3>
-        <ul className="mt-2">
-          {vendors.map((vendor) => (
-            <li
-              key={vendor._id}
-              className="p-2 border-b flex justify-between items-center"
-            >
-              <span>
-                {vendor.name} - {vendor.shopID}
-              </span>
-              <button
-                className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                onClick={() => setSelectedVendor(vendor)}
+        <h3 className="font-semibold text-gray-700">{t("assign_locations")}</h3>
+        {vendors.length === 0 ? (
+          <p className="text-gray-500 mt-2">{t("no_vendors")}</p>
+        ) : (
+          <ul className="mt-2">
+            {vendors.map((vendor) => (
+              <li
+                key={vendor._id}
+                className="p-2 border-b flex justify-between items-center"
               >
-                Assign Location
-              </button>
-            </li>
-          ))}
-        </ul>
+                <span>
+                  {vendor.name} - {vendor.shopID}
+                </span>
+                <button
+                  className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  onClick={() => setSelectedVendor(vendor)}
+                >
+                  {vendor.location?.lat
+                    ? t("reassign_location")
+                    : t("assign_location")}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      {/* Modals */}
       {showReviewModal && selectedVendor && (
         <LicenseReview
           vendor={selectedVendor}

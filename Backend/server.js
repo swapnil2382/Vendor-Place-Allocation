@@ -8,6 +8,7 @@ const stallRoutes = require("./routes/stalls");
 const vendorRoutes = require("./routes/vendorRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 
@@ -65,28 +66,31 @@ app.use("/uploads", express.static(uploadsDir));
 app.use("/images", express.static(imagesDir));
 app.use("/public", express.static(publicDir));
 
-// API routes
-app.use("/api/stalls", stallRoutes);
-app.use("/api/vendors", vendorRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/auth", authRoutes);
-
-// Health check endpoint
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", message: "Server is running" });
-});
-
-// Connect to MongoDB
+// Connect to MongoDB first
 mongoose
   .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+  .then(() => {
+    console.log("Connected to MongoDB");
 
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+    // Set up API routes after successful database connection
+    app.use("/api/stalls", stallRoutes);
+    app.use("/api/vendors", vendorRoutes);
+    app.use("/api/admin", adminRoutes);
+    app.use("/api/auth", authRoutes);
+    app.use("/api/users", userRoutes);
+
+    // Health check endpoint
+    app.get("/health", (req, res) => {
+      res.json({ status: "ok", message: "Server is running" });
+    });
+
+    // Start server
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch((err) => console.error("MongoDB connection error:", err));

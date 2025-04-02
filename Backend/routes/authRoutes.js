@@ -1,3 +1,4 @@
+// backend/routes/authRoutes.js
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
@@ -21,10 +22,10 @@ router.post("/register/vendor", async (req, res) => {
       aadhaarID,
       category,
       location,
-      businessName, // Required
-      panNumber, // Required
-      shopPhoto, // Required in license.documents
-      vendorPhoto, // Required in license.documents
+      businessName,
+      panNumber,
+      shopPhoto,
+      vendorPhoto,
     } = req.body;
 
     console.log("Vendor registration payload:", req.body);
@@ -71,14 +72,14 @@ router.post("/register/vendor", async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      phone, // Map directly to phone
+      phone,
       aadhaarID,
       category,
       location,
       businessName,
       panNumber,
-      shopPhoto, // Top-level field
-      vendorPhoto, // Top-level field
+      shopPhoto,
+      vendorPhoto,
       shopID: Math.floor(100000 + Math.random() * 900000), // Random 6-digit number
       role: "vendor",
       license: {
@@ -126,7 +127,7 @@ router.post("/register/vendor", async (req, res) => {
   }
 });
 
-// User Registration (unchanged for brevity)
+// User Registration
 router.post("/register/user", async (req, res) => {
   try {
     const { username, email, password, phone } = req.body;
@@ -186,6 +187,11 @@ router.post("/register/user", async (req, res) => {
       stack: error.stack,
       code: error.code,
     });
+    if (error.code === 11000) {
+      return res
+        .status(400)
+        .json({ message: "Duplicate key error", error: error.message });
+    }
     res.status(500).json({
       message: "Server error during user registration",
       error: error.message,
@@ -193,7 +199,7 @@ router.post("/register/user", async (req, res) => {
   }
 });
 
-// Admin Login, Vendor Login, User Login (unchanged for brevity)
+// Admin Login
 router.post("/admin/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -214,15 +220,14 @@ router.post("/admin/login", async (req, res) => {
       message: error.message,
       stack: error.stack,
     });
-    res
-      .status(500)
-      .json({
-        message: "Server error during admin login",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Server error during admin login",
+      error: error.message,
+    });
   }
 });
 
+// Vendor Login
 router.post("/vendor/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -247,15 +252,14 @@ router.post("/vendor/login", async (req, res) => {
       message: error.message,
       stack: error.stack,
     });
-    res
-      .status(500)
-      .json({
-        message: "Server error during vendor login",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Server error during vendor login",
+      error: error.message,
+    });
   }
 });
 
+// User Login
 router.post("/user/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -280,12 +284,10 @@ router.post("/user/login", async (req, res) => {
       message: error.message,
       stack: error.stack,
     });
-    res
-      .status(500)
-      .json({
-        message: "Server error during user login",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Server error during user login",
+      error: error.message,
+    });
   }
 });
 
