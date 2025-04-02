@@ -323,22 +323,120 @@ router.get("/marketplace", async (req, res) => {
   }
 });
 
-// Complete vendor profile
-router.put("/complete-profile", protectVendor, async (req, res) => {
-  try {
-    const vendor = await Vendor.findById(req.vendor.id);
-    if (!vendor) return res.status(404).json({ message: "Vendor not found" });
 
-    Object.assign(vendor, req.body, { isProfileComplete: true });
-    await vendor.save();
+router.put(
+  "/complete-profile",
+  protectVendor,
+  upload.fields([
+    { name: "shopPhoto", maxCount: 1 },
+    { name: "vendorPhoto", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    try {
+      console.log("Request body:", req.body); // Debug
+      console.log("Uploaded files:", req.files); // Debug
 
-    res.json({ message: "Profile updated successfully", vendor });
-  } catch (error) {
-    console.error("Error in /complete-profile:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+      const vendor = await Vendor.findById(req.vendor.id);
+      if (!vendor) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+
+      // Destructure fields from req.body with default empty strings to avoid undefined
+      const {
+        businessName = "",
+        businessDescription = "",
+        alternateContact = "",
+        gstNumber = "",
+        panNumber = "",
+        yearsInBusiness = "",
+        preferredMarketArea = "",
+        gpsCoordinates = "",
+        spotType = "",
+        alternateSpot = "",
+        productsSold = "",
+        dailyStock = "",
+        peakSellingHours = "",
+        priceRange = "",
+        hasTradeLicense = "false", // Default to string "false" for checkbox
+        requiresStorage = "false", // Default to string "false" for checkbox
+        emergencyContact = "",
+      } = req.body;
+
+      // Update text fields only if provided (preserve existing values otherwise)
+      vendor.businessName = businessName || vendor.businessName;
+      vendor.businessDescription = businessDescription || vendor.businessDescription;
+      vendor.alternateContact = alternateContact || vendor.alternateContact;
+      vendor.gstNumber = gstNumber || vendor.gstNumber;
+      vendor.panNumber = panNumber || vendor.panNumber;
+      vendor.yearsInBusiness = yearsInBusiness
+        ? Number(yearsInBusiness)
+        : vendor.yearsInBusiness;
+      vendor.preferredMarketArea = preferredMarketArea || vendor.preferredMarketArea;
+      vendor.gpsCoordinates = gpsCoordinates || vendor.gpsCoordinates;
+      vendor.spotType = spotType || vendor.spotType;
+      vendor.alternateSpot = alternateSpot || vendor.alternateSpot;
+      vendor.dailyStock = dailyStock ? Number(dailyStock) : vendor.dailyStock;
+      vendor.peakSellingHours = peakSellingHours || vendor.peakSellingHours;
+      vendor.priceRange = priceRange || vendor.priceRange;
+      vendor.hasTradeLicense =
+        hasTradeLicense === "true" ? true : hasTradeLicense === "false" ? false : vendor.hasTradeLicense;
+      vendor.requiresStorage =
+        requiresStorage === "true" ? true : requiresStorage === "false" ? false : vendor.requiresStorage;
+      vendor.emergencyContact = emergencyContact || vendor.emergencyContact;
+
+      // Set isProfileComplete to true only if key fields are provided
+      vendor.isProfileComplete = !!(
+        vendor.businessName &&
+        vendor.panNumber &&
+        vendor.category // Assuming category is required from schema
+      );
+
+      // Handle productsSold as a comma-separated string
+      if (productsSold) {
+        const productsArray = productsSold
+          .split(",")
+          .map((name) => ({
+            name: name.trim(),
+            price: 0, // Default price (could be made configurable)
+            category: "Uncategorized", // Default category (could be made configurable)
+            stock: 0, // Default stock
+            createdAt: new Date(),
+          }))
+          .filter((product) => product.name); // Filter out empty names
+        vendor.products = productsArray.length > 0 ? productsArray : vendor.products;
+      }
+
+      // Handle image uploads
+      if (req.files) {
+        if (req.files.shopPhoto) {
+          const shopPhotoUrl = `http://localhost:5000/uploads/${req.files.shopPhoto[0].filename}`;
+          vendor.shopPhoto = shopPhotoUrl;
+          console.log("Updated shopPhoto:", shopPhotoUrl); // Debug
+        }
+        if (req.files.vendorPhoto) {
+          const vendorPhotoUrl = `http://localhost:5000/uploads/${req.files.vendorPhoto[0].filename}`;
+          vendor.vendorPhoto = vendorPhotoUrl;
+          console.log("Updated vendorPhoto:", vendorPhotoUrl); // Debug
+        }
+      }
+
+      // Save the updated vendor document
+      await vendor.save();
+
+      // Return the updated vendor data
+      res.json({
+        message: "Profile updated successfully",
+        vendor: vendor.toJSON(), // Ensure all fields are serialized
+      });
+    } catch (error) {
+      console.error("Error in /complete-profile:", error.stack); // Include stack trace for better debugging
+      res.status(500).json({
+        message: "Server error",
+        error: error.message,
+      });
+    }
   }
-});
-
+);
 // Check and reset expired stalls (run periodically via cron or manually)
 router.post("/check-expired-stalls", protectVendor, async (req, res) => {
   try {

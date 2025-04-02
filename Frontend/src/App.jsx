@@ -8,7 +8,7 @@ import LicenseApplicationPage from "./components/LicenseApplication";
 import AdminDashboard from "./pages/AdminDashboard";
 import PrivateRoute from "./PrivateRoute";
 import Homepage from "./pages/HomePage";
-import Navbar from "./components/Navbar";
+
 import Footer from "./components/Footer";
 import CompleteProfile from "./pages/CompleteProfile";
 import Places from "./pages/Places";
@@ -18,7 +18,7 @@ import UserDashboard from "./pages/UserDashboard";
 function App() {
   return (
     <>
-      <Navbar />
+   
       <Routes>
         <Route path="/" element={<Homepage />} />
         <Route path="/register" element={<Register />} />

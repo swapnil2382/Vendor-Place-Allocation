@@ -1,18 +1,17 @@
-// frontend/src/components/ProductForm.jsx
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState } from "react";
+import axios from "axios";
 
 const ProductForm = () => {
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    category: '',
-    stock: '',
+    name: "",
+    description: "",
+    price: "",
+    category: "",
+    stock: "",
   });
   const [image, setImage] = useState(null);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,84 +24,97 @@ const ProductForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const data = new FormData();
-    
-    Object.keys(formData).forEach(key => {
-      data.append(key, formData[key]);
-    });
-    if (image) data.append('productImage', image);
-  
+    Object.keys(formData).forEach((key) => data.append(key, formData[key]));
+    if (image) data.append("productImage", image);
+
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (!token) {
-        setError('No authentication token found. Please log in.');
+        setError("Authentication token not found. Please log in.");
         return;
       }
-  
-      const response = await axios.post( // Line 41
-        'http://localhost:5000/api/vendors/add-product',
+
+      const response = await axios.post(
+        "http://localhost:5000/api/vendors/add-product",
         data,
         {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
             Authorization: `Bearer ${token}`,
           },
         }
       );
-      setMessage(response.data.message);
-      setError('');
-      setFormData({ name: '', description: '', price: '', category: '', stock: '' });
+      setMessage("Product registered successfully.");
+      setError("");
+      setFormData({ name: "", description: "", price: "", category: "", stock: "" });
       setImage(null);
     } catch (error) {
-      console.error('Error adding product:', error.response || error); // Line 56
-      setError(error.response?.data?.message || 'Failed to add product. Please try again.');
-      setMessage('');
+      setError(
+        error.response?.data?.message || "Failed to register product."
+      );
+      setMessage("");
     }
   };
 
   return (
-    <div className="max-w-lg mx-auto">
-      <h2 className="text-2xl font-semibold mb-4">Add New Product</h2>
-      {message && <p className="mb-4 text-green-600">{message}</p>}
-      {error && <p className="mb-4 text-red-600">{error}</p>}
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 max-w-lg mx-auto">
+      <h3 className="text-xl font-semibold text-gray-800 mb-4">
+        Register New Product
+      </h3>
+      {message && (
+        <p className="mb-4 text-green-600 bg-green-100 p-2 rounded">{message}</p>
+      )}
+      {error && (
+        <p className="mb-4 text-red-600 bg-red-100 p-2 rounded">{error}</p>
+      )}
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block mb-1">Product Name</label>
+          <label className="block text-gray-700 font-medium mb-1">
+            Product Name <span className="text-red-600">*</span>
+          </label>
           <input
             type="text"
             name="name"
             value={formData.name}
             onChange={handleChange}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
         </div>
         <div>
-          <label className="block mb-1">Description</label>
+          <label className="block text-gray-700 font-medium mb-1">
+            Description
+          </label>
           <textarea
             name="description"
             value={formData.description}
             onChange={handleChange}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            rows="3"
           />
         </div>
         <div>
-          <label className="block mb-1">Price</label>
+          <label className="block text-gray-700 font-medium mb-1">
+            Price (₹) <span className="text-red-600">*</span>
+          </label>
           <input
             type="number"
             name="price"
             value={formData.price}
             onChange={handleChange}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
         </div>
         <div>
-          <label className="block mb-1">Category</label>
+          <label className="block text-gray-700 font-medium mb-1">
+            Category <span className="text-red-600">*</span>
+          </label>
           <select
             name="category"
             value={formData.category}
             onChange={handleChange}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           >
             <option value="">Select Category</option>
@@ -113,32 +125,36 @@ const ProductForm = () => {
           </select>
         </div>
         <div>
-          <label className="block mb-1">Stock Quantity</label>
+          <label className="block text-gray-700 font-medium mb-1">
+            Stock Quantity
+          </label>
           <input
             type="number"
             name="stock"
             value={formData.stock}
             onChange={handleChange}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
         <div>
-          <label className="block mb-1">Product Image</label>
+          <label className="block text-gray-700 font-medium mb-1">
+            Product Image
+          </label>
           <input
             type="file"
             onChange={handleImageChange}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border border-gray-300 rounded text-gray-600"
             accept="image/*"
           />
         </div>
         <button
           type="submit"
-          className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+          className="w-full bg-blue-700 text-white py-2 rounded font-medium hover:bg-blue-800 transition-colors"
         >
-          Add Product
+          Register Product
         </button>
       </form>
-    </div>
+    </section>
   );
 };
 

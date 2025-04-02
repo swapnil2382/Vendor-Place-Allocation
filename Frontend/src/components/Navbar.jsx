@@ -1,11 +1,10 @@
-// frontend/src/components/Navbar.jsx
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useTranslation } from "react-i18next";
 
 function Navbar() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation(); // Keep translation support, but remove language switcher
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(localStorage.getItem("role")); // Initialize from localStorage
   const navigate = useNavigate();
@@ -25,26 +24,19 @@ function Navbar() {
       try {
         let res;
         if (role === "vendor") {
-          res = await axios.get(
-            `http://localhost:5000/api/vendors/me?lang=${i18n.language}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
+          res = await axios.get("http://localhost:5000/api/vendors/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
         } else if (role === "user") {
-          res = await axios.get(
-            `http://localhost:5000/api/users/me?lang=${i18n.language}`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
+          res = await axios.get("http://localhost:5000/api/users/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
         } else if (role === "admin") {
-          // Add admin endpoint if needed
-          return;
+          // Minimal admin fetch, assuming name is available
+          res = { data: { name: "Administrator" } }; // Placeholder; replace with actual endpoint if needed
         }
         if (res?.data) {
           setUser(res.data);
-          console.log("User fetched for Navbar:", res.data); // Debugging
         }
       } catch (err) {
         console.error(
@@ -62,7 +54,7 @@ function Navbar() {
     };
 
     fetchUser();
-  }, [role, i18n.language, navigate]); // Added navigate to dependency array
+  }, [role, navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -72,113 +64,25 @@ function Navbar() {
     navigate("/");
   };
 
-  const changeLanguage = (lng) => {
-    i18n.changeLanguage(lng);
-    localStorage.setItem("i18nLng", lng); // Persist language choice
-  };
-
-  // Load saved language on mount
-  useEffect(() => {
-    const savedLng = localStorage.getItem("i18nLng");
-    if (savedLng) i18n.changeLanguage(savedLng);
-  }, [i18n]);
-
   return (
-    <nav className="bg-blue-600 p-4 flex justify-between items-center">
-      <h1 className="text-white text-2xl font-bold">{t("app_name")}</h1>
+    <nav className="bg-blue-900 p-4 flex justify-between items-center shadow-md">
+      {/* Left Side: App Name */}
+      <h1 className="text-white text-2xl font-semibold tracking-wide">
+        {t("app_name")}
+      </h1>
 
-      <div className="flex items-center gap-4">
-        {role ? (
+      {/* Right Side: User Info or Login */}
+      <div className="flex items-center gap-6">
+        {role && user ? (
           <>
-            {role === "admin" ? (
-              <span className="text-white font-bold">{t("ind_govt")}</span>
-            ) : (
-              <div className="flex items-center gap-4">
-                {role === "vendor" && (
-                  <>
-                    <Link to="/vendor" className="text-white hover:underline">
-                      {t("home")}
-                    </Link>
-                    <Link
-                      to="/vendor/location"
-                      className="text-white hover:underline"
-                    >
-                      {t("location")}
-                    </Link>
-                    <Link
-                      to="/vendor/products"
-                      className="text-white hover:underline"
-                    >
-                      {t("products")}
-                    </Link>
-                    <Link
-                      to="/vendor/orders"
-                      className="text-white hover:underline"
-                    >
-                      {t("orders")}
-                    </Link>
-                    <Link
-                      to="/vendor/license"
-                      className="text-white hover:underline"
-                    >
-                      {t("license")}
-                    </Link>
-                    <Link to="/places" className="text-white hover:underline">
-                      {t("place")}
-                    </Link>
-                  </>
-                )}
-                {role === "user" && (
-                  <>
-                    <Link to="/user" className="text-white hover:underline">
-                      {t("home")}
-                    </Link>
-                    <Link to="/cart" className="text-white hover:underline">
-                      {t("cart")}
-                    </Link>
-                  </>
-                )}
-                <span className="text-white">
-                  {user?.name || user?.username || "User"}
-                </span>
-                <img
-                  src="https://via.placeholder.com/40"
-                  alt="Profile"
-                  className="w-10 h-10 rounded-full"
-                />
-              </div>
-            )}
-
-            {/* Language Dropdown */}
-            <div className="relative group">
-              <button className="text-white px-2 py-1 rounded bg-blue-700 hover:bg-blue-800">
-                {t("language")}
-              </button>
-              <div className="absolute right-0 mt-2 w-32 bg-white rounded shadow-lg hidden group-hover:block">
-                <button
-                  onClick={() => changeLanguage("en")}
-                  className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
-                >
-                  {t("english")}
-                </button>
-                <button
-                  onClick={() => changeLanguage("hi")}
-                  className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
-                >
-                  {t("hindi")}
-                </button>
-                <button
-                  onClick={() => changeLanguage("ta")}
-                  className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
-                >
-                  {t("tamil")}
-                </button>
-              </div>
-            </div>
-
+            {/* Display only the user's name */}
+            <span className="text-white text-lg font-medium">
+              {user.name || user.username || "User"}
+            </span>
+            {/* Logout Button */}
             <button
               onClick={handleLogout}
-              className="bg-red-500 text-white px-4 py-2 rounded"
+              className="bg-red-600 text-white px-4 py-2 rounded font-medium hover:bg-red-700 transition-colors"
             >
               {t("logout")}
             </button>
@@ -186,7 +90,7 @@ function Navbar() {
         ) : (
           <Link
             to="/login"
-            className="bg-white text-blue-600 px-4 py-2 rounded"
+            className="bg-white text-blue-900 px-4 py-2 rounded font-medium hover:bg-gray-100 transition-colors"
           >
             {t("login")}
           </Link>
