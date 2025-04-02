@@ -6,7 +6,7 @@ function Marketplace() {
     const [search, setSearch] = useState("");
 
     useEffect(() => {
-        // Fetch vendor marketplace data
+        
         const fetchVendors = async () => {
             const res = await axios.get("/api/vendors/marketplace");
             setVendors(res.data);
