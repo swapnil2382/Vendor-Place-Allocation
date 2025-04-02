@@ -31,11 +31,7 @@ const Login = () => {
       setLoading(false);
       return;
     }
-    if (password.length < 8) { // Increased to 8 for government security standards
-      setError("Password must be at least 8 characters long.");
-      setLoading(false);
-      return;
-    }
+   
 
     try {
       const url =
