@@ -1,25 +1,17 @@
-// src/components/Navbar.jsx
+// frontend/src/components/Navbar.jsx
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 function Navbar() {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState(localStorage.getItem("role")); // Initialize from localStorage
   const navigate = useNavigate();
-
-  useEffect(() => {
-    // Get role from localStorage on component mount
-    const storedRole = localStorage.getItem("role");
-    if (storedRole) {
-      setRole(storedRole);
-    }
-  }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
-      if (!token) return;
+      if (!token || !role) return;
 
       try {
         let res;
@@ -31,19 +23,28 @@ function Navbar() {
           res = await axios.get("http://localhost:5000/api/users/me", {
             headers: { Authorization: `Bearer ${token}` },
           });
+        } else if (role === "admin") {
+          // Add admin endpoint if needed
+          return;
         }
         if (res?.data) {
           setUser(res.data);
+          console.log("User fetched for Navbar:", res.data); // Debugging
         }
       } catch (err) {
-        console.error("Error fetching user:", err.response?.data || err);
-        localStorage.removeItem("token");
-        setRole(null);
+        console.error("Error fetching user:", err.response?.data || err.message);
+        if (err.response?.status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("role");
+          setUser(null);
+          setRole(null);
+          navigate("/login");
+        }
       }
     };
 
     fetchUser();
-  }, [role]);
+  }, [role, navigate]); // Only re-fetch if role or navigate changes
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -65,52 +66,21 @@ function Navbar() {
             <div className="flex items-center gap-4">
               {role === "vendor" && (
                 <>
-                  <Link to="/vendor" className="text-white hover:underline">
-                    Home
-                  </Link>
-                  <Link
-                    to="/vendor/location"
-                    className="text-white hover:underline"
-                  >
-                    Location
-                  </Link>
-                  <Link
-                    to="/vendor/products"
-                    className="text-white hover:underline"
-                  >
-                    Products
-                  </Link>
-                  <Link
-                    to="/vendor/orders"
-                    className="text-white hover:underline"
-                  >
-                    Orders
-                  </Link>
-                  <Link
-                    to="/vendor/license"
-                    className="text-white hover:underline"
-                  >
-                    License
-                  </Link>
-                  <Link
-                    to="/places"
-                    className="text-white hover:underline"
-                  >
-                    place
-                  </Link>
+                  <Link to="/vendor" className="text-white hover:underline">Home</Link>
+                  <Link to="/vendor/location" className="text-white hover:underline">Location</Link>
+                  <Link to="/vendor/products" className="text-white hover:underline">Products</Link>
+                  <Link to="/vendor/orders" className="text-white hover:underline">Orders</Link>
+                  <Link to="/vendor/license" className="text-white hover:underline">License</Link>
+                  <Link to="/places" className="text-white hover:underline">Place</Link>
                 </>
               )}
               {role === "user" && (
                 <>
-                  <Link to="/user" className="text-white hover:underline">
-                    Home
-                  </Link>
-                  <Link to="/cart" className="text-white hover:underline">
-                    Cart
-                  </Link>
+                  <Link to="/user" className="text-white hover:underline">Home</Link>
+                  <Link to="/cart" className="text-white hover:underline">Cart</Link>
                 </>
               )}
-              <span className="text-white">{user?.name || "User"}</span>
+              <span className="text-white">{user?.name || user?.username || "User"}</span>
               <img
                 src="https://via.placeholder.com/40"
                 alt="Profile"
@@ -118,7 +88,6 @@ function Navbar() {
               />
             </div>
           )}
-
           <button
             onClick={handleLogout}
             className="bg-red-500 text-white px-4 py-2 rounded"

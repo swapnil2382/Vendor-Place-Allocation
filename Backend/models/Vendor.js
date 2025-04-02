@@ -27,16 +27,14 @@ const VendorSchema = new mongoose.Schema(
     location: {
       type: String,
       required: true,
-      // Adding compatibility with the new location structure
       _v1Compatibility: true,
     },
-    // New location structure
     gpsLocation: {
-      latitude: { type: Number, default: null },
-      longitude: { type: Number, default: null },
+      latitude: { type: Number, default: 0 },
+      longitude: { type: Number, default: 0 },
     },
-    gpsCoordinates: { type: String, default: "" }, // Keep for backward compatibility
-    lastAttendance: { type: Date }, // Added from original schema
+    gpsCoordinates: { type: String, default: "" },
+    lastAttendance: { type: Date },
     spotType: {
       type: String,
       enum: ["Permanent", "Temporary"],
@@ -46,9 +44,12 @@ const VendorSchema = new mongoose.Schema(
     products: [
       {
         name: { type: String, required: true },
-        image: { type: String, required: true },
-        description: { type: String, required: true },
+        image: { type: String, default: "" },
+        description: { type: String, default: "" },
         price: { type: Number, required: true, min: 0 },
+        category: { type: String, required: true },
+        stock: { type: Number, default: 0 },
+        createdAt: { type: Date, default: Date.now },
       },
     ],
     dailyStock: { type: Number, default: 0 },
@@ -78,9 +79,11 @@ const VendorSchema = new mongoose.Schema(
     emergencyContact: { type: String, default: "" },
     orders: [
       {
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        product: { type: String, required: true },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        productId: { type: mongoose.Schema.Types.ObjectId, required: true }, // Added
+        productName: { type: String, required: true }, // Renamed from product
         quantity: { type: Number, required: true, min: 1 },
+        price: { type: Number, required: true, min: 0 }, // Added
         status: {
           type: String,
           enum: ["Pending", "Completed"],
@@ -89,8 +92,22 @@ const VendorSchema = new mongoose.Schema(
         orderedAt: { type: Date, default: Date.now },
       },
     ],
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
+
+VendorSchema.pre("save", function (next) {
+  if (
+    this.location &&
+    typeof this.location === "object" &&
+    this.location.latitude &&
+    this.location.longitude
+  ) {
+    console.log(`Converting location object to string for vendor ${this._id}`);
+    this.location = `${this.location.latitude},${this.location.longitude}`;
+  }
+  next();
+});
 
 module.exports = mongoose.model("Vendor", VendorSchema);

@@ -1,3 +1,4 @@
+// frontend/src/components/Register.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -23,12 +24,16 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const endpoint = role === "vendor" ? "/register/vendor" : "/register/user";
+    const url = `http://localhost:5000/api/auth${endpoint}`;
+    console.log("Submitting to:", url, "with data:", formData); // Debug log
 
     try {
-      const response = await axios.post(`http://localhost:5000/api/auth${endpoint}`, formData);
+      const response = await axios.post(url, formData);
+      console.log("Registration response:", response.data); // Debug log
       alert(response.data.message);
       navigate("/login");
     } catch (error) {
+      console.error("Registration error:", error.response?.data || error.message);
       alert(error.response?.data?.message || "Registration failed.");
     }
   };

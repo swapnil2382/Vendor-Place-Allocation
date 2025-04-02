@@ -18,10 +18,8 @@ router.get("/", protectVendor, async (req, res) => {
 // Get stall by vendor ID (for VendorDashboard.jsx)
 router.get("/by-vendor/:vendorId", protectVendor, async (req, res) => {
   try {
-    const stall = await Stall.findOne({
-      vendorID: req.params.vendorId,
-      taken: true,
-    });
+    const stall = await Stall.findOne({ vendorID: req.params.vendorId, taken: true });
+
 
     if (!stall) {
       return res

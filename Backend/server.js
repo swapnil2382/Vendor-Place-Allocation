@@ -8,6 +8,10 @@ const stallRoutes = require("./routes/stalls");
 const vendorRoutes = require("./routes/vendorRoutes"); // Ensure this matches the filename
 const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
+
+
+
 
 
 dotenv.config();
@@ -22,6 +26,8 @@ app.use("/api/stalls", stallRoutes);
 app.use("/api/vendors", vendorRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
+
+app.use("/api/users", userRoutes);
 
 mongoose
   .connect(process.env.MONGO_URI, {
