@@ -52,15 +52,15 @@ const Register = () => {
             username: formData.name,
             email: formData.email,
             password: formData.password,
-            phone: formData.phone,
+            phone: formData.phone, // Changed from "phoneNumber" to "phone"
           };
 
     const url = `http://localhost:5000/api/auth${endpoint}?lang=${i18n.language}`;
-    console.log("Submitting to:", url, "with data:", payload); // Debug log
+    console.log("Submitting to:", url, "with data:", payload);
 
     try {
       const response = await axios.post(url, payload);
-      console.log("Registration response:", response.data); // Debug log
+      console.log("Registration response:", response.data);
 
       const token = response.data.token;
       if (token) localStorage.setItem("token", token);

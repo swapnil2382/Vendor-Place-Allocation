@@ -1,5 +1,5 @@
-// backend/routes/authRoutes.js
 const express = require("express");
+ Asc = require("express-async-handler");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const Vendor = require("../models/Vendor");
@@ -30,7 +30,6 @@ router.post("/register/vendor", async (req, res) => {
 
     console.log("Vendor registration payload:", req.body);
 
-    // Validate required fields
     const requiredFields = {
       name,
       email,
@@ -54,7 +53,6 @@ router.post("/register/vendor", async (req, res) => {
       });
     }
 
-    // Check for existing email or aadhaarID
     const existingVendorByEmail = await Vendor.findOne({ email });
     const existingVendorByAadhaar = await Vendor.findOne({ aadhaarID });
     const existingUser = await User.findOne({ email });
@@ -67,7 +65,6 @@ router.post("/register/vendor", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new vendor
     const newVendor = new Vendor({
       name,
       email,
@@ -80,17 +77,17 @@ router.post("/register/vendor", async (req, res) => {
       panNumber,
       shopPhoto,
       vendorPhoto,
-      shopID: Math.floor(100000 + Math.random() * 900000), // Random 6-digit number
+      shopID: Math.floor(100000 + Math.random() * 900000),
       role: "vendor",
       license: {
         documents: {
-          aadhaarID, // Reuse from top-level
+          aadhaarID,
           panNumber,
           businessName,
           shopPhoto,
           vendorPhoto,
-          gstNumber: "", // Optional
-          licenseImage: "", // Optional
+          gstNumber: "",
+          licenseImage: "",
         },
       },
     });
@@ -130,7 +127,7 @@ router.post("/register/vendor", async (req, res) => {
 // User Registration
 router.post("/register/user", async (req, res) => {
   try {
-    const { username, email, password, phone } = req.body;
+    const { username, email, password, phone } = req.body; // Changed back to "phone"
 
     console.log("User registration payload:", req.body);
 
@@ -158,7 +155,7 @@ router.post("/register/user", async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      phoneNumber: phone,
+      phone, // Matches the model
       role: "user",
     });
 
@@ -178,7 +175,7 @@ router.post("/register/user", async (req, res) => {
         id: newUser._id,
         username,
         email,
-        phone: newUser.phoneNumber,
+        phone, // Response uses "phone"
       },
     });
   } catch (error) {
