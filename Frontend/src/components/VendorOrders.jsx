@@ -64,7 +64,7 @@ const VendorOrders = () => {
               <div>
                 <p><strong>Product:</strong> {order.productName}</p>
                 <p><strong>Quantity:</strong> {order.quantity}</p>
-                <p><strong>Price:</strong> ${order.price}</p>
+                <p><strong>Price:</strong> ₹{order.price}</p>
                 <p><strong>User:</strong> {order.userId?.username || "Unknown"}</p>
                 <p><strong>Status:</strong> {order.status}</p>
                 <p><strong>Ordered At:</strong> {new Date(order.orderedAt).toLocaleString()}</p>
