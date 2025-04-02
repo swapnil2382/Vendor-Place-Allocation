@@ -1,4 +1,3 @@
-// backend/routes/adminRoutes.js
 const express = require("express");
 const router = express.Router();
 const Vendor = require("../models/Vendor");
@@ -22,7 +21,6 @@ router.post("/reallocate/:vendorId", protectAdmin, async (req, res) => {
     const vendor = await Vendor.findById(req.params.vendorId);
     if (!vendor) return res.status(404).json({ message: "Vendor not found" });
 
-    // Handle both location formats
     if (req.body.location) {
       if (typeof req.body.location === "string") {
         vendor.location = req.body.location;
@@ -31,7 +29,6 @@ router.post("/reallocate/:vendorId", protectAdmin, async (req, res) => {
           latitude: req.body.location.latitude,
           longitude: req.body.location.longitude,
         };
-        // Update string format for backward compatibility
         vendor.gpsCoordinates = `${req.body.location.latitude},${req.body.location.longitude}`;
       }
     }
@@ -70,25 +67,33 @@ router.get("/stalls", protectAdmin, async (req, res) => {
 // Create a new stall
 router.post("/create-stall", protectAdmin, async (req, res) => {
   try {
-    const { lat, lng } = req.body;
-    if (!lat || !lng) {
-      return res.status(400).json({ message: "lat and lng are required" });
+    const { lat, lng, locationName } = req.body;
+    if (!lat || !lng || !locationName) {
+      return res
+        .status(400)
+        .json({ message: "lat, lng, and locationName are required" });
     }
 
-    // Find the highest stall number to avoid duplicates
-    const existingStalls = await Stall.find().sort({ name: -1 }).limit(1);
-    let stallNumber = 1;
-    if (existingStalls.length > 0) {
-      const lastStallName = existingStalls[0].name; // e.g., "Stall 5"
-      const lastNumber = parseInt(lastStallName.split(" ")[1]);
-      stallNumber = lastNumber + 1;
+    // Check if there are any existing locations with unassigned stalls
+    const existingStalls = await Stall.find({ locationName });
+    if (
+      existingStalls.length > 0 &&
+      existingStalls.some((stall) => !stall.taken)
+    ) {
+      return res.status(400).json({
+        message:
+          "Please assign all stalls in the current location before creating a new one.",
+      });
     }
-    const stallName = `Stall ${stallNumber}`;
+
+    const stallCount = await Stall.countDocuments({ locationName });
+    const stallName = `${locationName} Stall ${stallCount + 1}`;
 
     const newStall = new Stall({
       name: stallName,
       lat,
       lng,
+      locationName,
       taken: false,
       vendorID: null,
     });
@@ -108,21 +113,34 @@ router.post("/create-stall", protectAdmin, async (req, res) => {
 // Create multiple stalls (bulk placement)
 router.post("/create-stalls-bulk", protectAdmin, async (req, res) => {
   try {
-    const { stalls } = req.body;
-    const existingStalls = await Stall.find().sort({ name: -1 }).limit(1);
-    let stallNumber =
-      existingStalls.length > 0
-        ? parseInt(existingStalls[0].name.split(" ")[1])
-        : 0;
+    const { stalls, locationName } = req.body;
+    if (!locationName) {
+      return res.status(400).json({ message: "locationName is required" });
+    }
+
+    // Check if there are any existing locations with unassigned stalls
+    const existingStalls = await Stall.find({ locationName });
+    if (
+      existingStalls.length > 0 &&
+      existingStalls.some((stall) => !stall.taken)
+    ) {
+      return res.status(400).json({
+        message:
+          "Please assign all stalls in the current location before creating a new one.",
+      });
+    }
+
+    let stallCount = await Stall.countDocuments({ locationName });
 
     const newStalls = [];
     for (let i = 0; i < stalls.length; i++) {
-      stallNumber += 1;
-      const stallName = `Stall ${stallNumber}`;
+      stallCount += 1;
+      const stallName = `${locationName} Stall ${stallCount}`;
       const newStall = new Stall({
         name: stallName,
         lat: stalls[i].lat,
         lng: stalls[i].lng,
+        locationName,
         taken: false,
         vendorID: null,
       });
@@ -144,7 +162,6 @@ router.put("/update-stall/:stallId", protectAdmin, async (req, res) => {
     const stall = await Stall.findById(req.params.stallId);
     if (!stall) return res.status(404).json({ message: "Stall not found" });
 
-    // If the stall is booked, update the vendor's gpsCoordinates
     if (stall.taken && stall.vendorID) {
       const vendor = await Vendor.findById(stall.vendorID);
       if (vendor) {
@@ -170,7 +187,6 @@ router.delete("/delete-stall/:stallId", protectAdmin, async (req, res) => {
     const stall = await Stall.findById(req.params.stallId);
     if (!stall) return res.status(404).json({ message: "Stall not found" });
 
-    // If the stall is booked, clear the vendor's gpsCoordinates
     if (stall.taken && stall.vendorID) {
       const vendor = await Vendor.findById(stall.vendorID);
       if (vendor) {
@@ -190,7 +206,6 @@ router.delete("/delete-stall/:stallId", protectAdmin, async (req, res) => {
 // Clear all stalls
 router.delete("/clear-stalls", protectAdmin, async (req, res) => {
   try {
-    // Clear gpsCoordinates for all vendors with booked stalls
     const bookedStalls = await Stall.find({ taken: true });
     const vendorIds = bookedStalls
       .filter((stall) => stall.vendorID)
@@ -202,7 +217,6 @@ router.delete("/clear-stalls", protectAdmin, async (req, res) => {
       );
     }
 
-    // Delete all stalls
     await Stall.deleteMany({});
     res.json({ message: "All stalls have been cleared successfully" });
   } catch (error) {

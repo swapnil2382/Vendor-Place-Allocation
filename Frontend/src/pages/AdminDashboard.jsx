@@ -1,19 +1,10 @@
-// src/pages/AdminDashboard.jsx
 import { useState, useEffect } from "react";
 import axios from "axios";
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-  Rectangle,
-  useMapEvents,
-  useMap,
-} from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import LicenseReview from "../components/LicenseReview";
 import CompletedLicense from "../components/CompletedLicense";
+import MapComponent from "./MapComponent";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -24,17 +15,6 @@ const vendorIcon = L.icon({
   popupAnchor: [0, -32],
 });
 
-const stallIcon = (taken) =>
-  L.divIcon({
-    html: `<div style="background-color: ${
-      taken ? "green" : "red"
-    }; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>`,
-    className: "",
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
-    popupAnchor: [0, -10],
-  });
-
 function AdminDashboard() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -42,15 +22,14 @@ function AdminDashboard() {
   const [stalls, setStalls] = useState([]);
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [message, setMessage] = useState("");
-  const [placementMode, setPlacementMode] = useState("free");
   const [gridSize, setGridSize] = useState(5);
-  const [bulkPlacement, setBulkPlacement] = useState(false);
-  const [bulkStart, setBulkStart] = useState(null);
-  const [bulkEnd, setBulkEnd] = useState(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showCompletedModal, setShowCompletedModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pendingLocation, setPendingLocation] = useState(null);
+  const [locationName, setLocationName] = useState("");
+  const [numStalls, setNumStalls] = useState(1);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -211,45 +190,35 @@ function AdminDashboard() {
     }
   };
 
-  const createStall = async (lat, lng) => {
+  const createStalls = async (lat, lng, locationName, numStalls) => {
     try {
-      const res = await api.post("/admin/create-stall", { lat, lng });
-      setStalls((prevStalls) => [...prevStalls, res.data]);
-      setMessage(t("stall_created"));
-      setTimeout(() => setMessage(""), 5000);
-    } catch (error) {
-      if (error.response?.status !== 401) {
-        setMessage(t("error_creating_stall"));
+      const metersToLatLng = (meters) => meters / 111000;
+      const gridStep = metersToLatLng(gridSize);
+      const newStalls = [];
+
+      let currentLat = lat;
+      let currentLng = lng;
+      for (let i = 0; i < numStalls; i++) {
+        newStalls.push({ lat: currentLat, lng: currentLng });
+        currentLng += gridStep;
+        if ((i + 1) % 3 === 0) {
+          currentLat -= gridStep;
+          currentLng = lng;
+        }
       }
-      console.error("Error creating stall:", error);
-    }
-  };
 
-  const createStallsBulk = async (start, end) => {
-    const metersToLatLng = (meters) => meters / 111000;
-    const gridStep = metersToLatLng(gridSize);
-    const minLat = Math.min(start.lat, end.lat);
-    const maxLat = Math.max(start.lat, end.lat);
-    const minLng = Math.min(start.lng, end.lng);
-    const maxLng = Math.max(start.lng, end.lng);
-
-    const newStalls = [];
-    for (let lat = minLat; lat <= maxLat; lat += gridStep) {
-      for (let lng = minLng; lng <= maxLng; lng += gridStep) {
-        newStalls.push({ lat, lng });
-      }
-    }
-
-    try {
       const res = await api.post("/admin/create-stalls-bulk", {
         stalls: newStalls,
+        locationName,
       });
       setStalls((prevStalls) => [...prevStalls, ...res.data]);
       setMessage(t("stalls_created", { count: res.data.length }));
       setTimeout(() => setMessage(""), 5000);
     } catch (error) {
       if (error.response?.status !== 401) {
-        setMessage(t("error_creating_bulk_stalls"));
+        setMessage(
+          error.response?.data?.message || t("error_creating_bulk_stalls")
+        );
       }
       console.error("Error creating stalls in bulk:", error);
     }
@@ -292,62 +261,36 @@ function AdminDashboard() {
     }
   };
 
-  const MapDragToggle = () => {
-    const map = useMap();
-    useEffect(() => {
-      if (bulkPlacement) {
-        map.dragging.disable();
-        map.scrollWheelZoom.disable();
-      } else {
-        map.dragging.enable();
-        map.scrollWheelZoom.enable();
-      }
-    }, [map, bulkPlacement]);
-    return null;
+  const handleMapClick = (latlng) => {
+    if (selectedVendor) {
+      const newLocation = { lat: latlng.lat, lng: latlng.lng };
+      updateVendorLocation(selectedVendor._id, newLocation);
+      setSelectedVendor(null);
+    } else {
+      setPendingLocation({ lat: latlng.lat, lng: latlng.lng });
+    }
   };
 
-  const MapEvents = () => {
-    useMapEvents({
-      click(e) {
-        if (selectedVendor) {
-          const newLocation = { lat: e.latlng.lat, lng: e.latlng.lng };
-          updateVendorLocation(selectedVendor._id, newLocation);
-          setSelectedVendor(null);
-        } else if (!bulkPlacement) {
-          const lat =
-            placementMode === "grid"
-              ? Math.round(e.latlng.lat / (gridSize / 111000)) *
-                (gridSize / 111000)
-              : e.latlng.lat;
-          const lng =
-            placementMode === "grid"
-              ? Math.round(e.latlng.lng / (gridSize / 111000)) *
-                (gridSize / 111000)
-              : e.latlng.lng;
-          createStall(lat, lng);
-        }
-      },
-      mousedown(e) {
-        if (bulkPlacement) {
-          setBulkStart({ lat: e.latlng.lat, lng: e.latlng.lng });
-          setBulkEnd(null);
-        }
-      },
-      mousemove(e) {
-        if (bulkPlacement && bulkStart) {
-          setBulkEnd({ lat: e.latlng.lat, lng: e.latlng.lng });
-        }
-      },
-      mouseup(e) {
-        if (bulkPlacement && bulkStart) {
-          const end = { lat: e.latlng.lat, lng: e.latlng.lng };
-          createStallsBulk(bulkStart, end);
-          setBulkStart(null);
-          setBulkEnd(null);
-        }
-      },
-    });
-    return null;
+  const handleLocationSubmit = () => {
+    if (!locationName) {
+      setMessage("Please enter a location name");
+      return;
+    }
+    if (!numStalls || numStalls < 1) {
+      setMessage("Please enter a valid number of stalls");
+      return;
+    }
+    if (pendingLocation) {
+      createStalls(
+        pendingLocation.lat,
+        pendingLocation.lng,
+        locationName,
+        numStalls
+      );
+      setPendingLocation(null);
+      setLocationName("");
+      setNumStalls(1);
+    }
   };
 
   if (error && error === "Authentication required") {
@@ -383,243 +326,255 @@ function AdminDashboard() {
   }
 
   return (
-    <div className="p-5">
-      <h2 className="text-2xl font-bold text-gray-800">
-        {t("admin_dashboard")}
-      </h2>
-
-      {message && (
-        <div
-          className={`mt-4 p-2 rounded text-center ${
-            message.includes("Error")
-              ? "bg-red-100 text-red-800"
-              : "bg-green-100 text-green-800"
-          }`}
-        >
-          {message}
-        </div>
-      )}
-
-      <div className="mt-4">
-        <h3 className="font-semibold text-gray-700">{t("vendor_licenses")}</h3>
-        {vendors.length === 0 ? (
-          <p className="text-gray-500 mt-2">{t("no_vendors")}</p>
-        ) : (
-          <ul>
-            {vendors.map((vendor) => (
-              <li
-                key={vendor._id}
-                className="p-2 border-b flex justify-between"
-              >
-                <span>
-                  {vendor.name} - {vendor.shopID}
-                </span>
-                <span
-                  className={`px-2 py-1 rounded cursor-pointer ${
-                    vendor.license?.status === "not issued"
-                      ? "bg-gray-400 text-white cursor-not-allowed"
-                      : vendor.license?.status === "requested"
-                      ? "bg-yellow-500 text-white"
-                      : vendor.license?.status === "issued"
-                      ? "bg-blue-500 text-white"
-                      : "bg-green-500 text-white"
-                  }`}
-                  onClick={() => handleLicenseClick(vendor)}
-                >
-                  {vendor.license?.status === "not issued"
-                    ? t("not_issued")
-                    : vendor.license?.status === "requested"
-                    ? t("requested")
-                    : vendor.license?.status === "issued"
-                    ? t("issued")
-                    : t("completed")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="mt-4">
-        <button
-          className="w-full max-w-xs py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-          onClick={resetStalls}
-        >
-          {t("reset_stalls")}
-        </button>
-      </div>
-
-      <div className="mt-6">
-        <h3 className="font-semibold text-gray-700">{t("manage_stalls")}</h3>
-        <div className="flex space-x-4 mt-2">
-          <div>
-            <label className="mr-2">{t("placement_mode")}</label>
-            <select
-              value={placementMode}
-              onChange={(e) => setPlacementMode(e.target.value)}
-              className="p-1 border rounded"
+    <div className="min-h-screen flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-gray-800 text-white p-5">
+        <h2 className="text-2xl font-bold mb-6">Admin Dashboard</h2>
+        <ul>
+          <li className="mb-4">
+            <button
+              className="w-full text-left py-2 px-4 bg-gray-700 rounded hover:bg-gray-600"
+              onClick={() => navigate("/admin-dashboard")}
             >
-              <option value="free">{t("free_placement")}</option>
-              <option value="grid">{t("grid_placement")}</option>
-            </select>
+              Dashboard
+            </button>
+          </li>
+          <li className="mb-4">
+            <button
+              className="w-full text-left py-2 px-4 bg-gray-700 rounded hover:bg-gray-600"
+              onClick={() => navigate("/manage-vendors")}
+            >
+              Manage Vendors
+            </button>
+          </li>
+          <li className="mb-4">
+            <button
+              className="w-full text-left py-2 px-4 bg-gray-700 rounded hover:bg-gray-600"
+              onClick={resetStalls}
+            >
+              Reset Stalls
+            </button>
+          </li>
+          <li className="mb-4">
+            <button
+              className="w-full text-left py-2 px-4 bg-gray-700 rounded hover:bg-gray-600"
+              onClick={clearAllStalls}
+            >
+              Clear Stalls
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 p-6 bg-gray-100">
+        <h2 className="text-3xl font-bold text-gray-800 mb-6">
+          {t("admin_dashboard")}
+        </h2>
+
+        {message && (
+          <div
+            className={`mb-4 p-2 rounded text-center ${
+              message.includes("Error")
+                ? "bg-red-100 text-red-800"
+                : "bg-green-100 text-green-800"
+            }`}
+          >
+            {message}
           </div>
-          {placementMode === "grid" && (
-            <div>
-              <label className="mr-2">{t("grid_size")}</label>
+        )}
+
+        {pendingLocation && (
+          <div className="mb-6 p-4 bg-white rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">Add New Location</h3>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Location Name</label>
+              <input
+                type="text"
+                value={locationName}
+                onChange={(e) => setLocationName(e.target.value)}
+                placeholder="e.g., Downtown Market Square"
+                className="w-full p-2 border rounded"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">
+                Number of Stalls
+              </label>
+              <input
+                type="number"
+                value={numStalls}
+                onChange={(e) => setNumStalls(Number(e.target.value))}
+                min="1"
+                className="w-full p-2 border rounded"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">
+                Grid Size (meters)
+              </label>
               <input
                 type="number"
                 value={gridSize}
                 onChange={(e) => setGridSize(Number(e.target.value))}
-                className="p-1 border rounded w-20"
                 min="1"
+                className="w-full p-2 border rounded"
               />
             </div>
+            <div className="flex space-x-4">
+              <button
+                onClick={handleLocationSubmit}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Submit
+              </button>
+              <button
+                onClick={() => setPendingLocation(null)}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="mb-6">
+          <h3 className="text-xl font-semibold text-gray-700 mb-4">
+            {t("vendor_licenses")}
+          </h3>
+          {vendors.length === 0 ? (
+            <p className="text-gray-500">{t("no_vendors")}</p>
+          ) : (
+            <div className="bg-white p-4 rounded-lg shadow">
+              <ul>
+                {vendors.map((vendor) => (
+                  <li
+                    key={vendor._id}
+                    className="p-2 border-b flex justify-between items-center"
+                  >
+                    <span className="text-gray-700">
+                      {vendor.name} - {vendor.shopID}
+                    </span>
+                    <span
+                      className={`px-2 py-1 rounded cursor-pointer ${
+                        vendor.license?.status === "not issued"
+                          ? "bg-gray-400 text-white cursor-not-allowed"
+                          : vendor.license?.status === "requested"
+                          ? "bg-yellow-500 text-white"
+                          : vendor.license?.status === "issued"
+                          ? "bg-blue-500 text-white"
+                          : "bg-green-500 text-white"
+                      }`}
+                      onClick={() => handleLicenseClick(vendor)}
+                    >
+                      {vendor.license?.status === "not issued"
+                        ? t("not_issued")
+                        : vendor.license?.status === "requested"
+                        ? t("requested")
+                        : vendor.license?.status === "issued"
+                        ? t("issued")
+                        : t("completed")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
-          <div>
-            <label className="mr-2">{t("bulk_placement")}</label>
-            <input
-              type="checkbox"
-              checked={bulkPlacement}
-              onChange={(e) => setBulkPlacement(e.target.checked)}
-            />
+        </div>
+
+        <div className="mb-6">
+          <h3 className="text-xl font-semibold text-gray-700 mb-4">
+            {t("manage_stalls")}
+          </h3>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <p className="text-gray-600 mb-4">
+              Click on the map to mark a location and add stalls.
+            </p>
+            <div className="h-[500px] rounded-lg overflow-hidden">
+              <MapComponent
+                center={[19.066435205235848, 72.99389000336194]}
+                zoom={18}
+                stalls={stalls}
+                onMapClick={handleMapClick}
+                onMarkerClick={(stall) => deleteStall(stall._id)}
+                showLocations={false}
+              />
+              {vendors
+                .filter(
+                  (vendor) => vendor.location?.lat && vendor.location?.lng
+                )
+                .map((vendor) => (
+                  <Marker
+                    key={vendor._id}
+                    position={[vendor.location.lat, vendor.location.lng]}
+                    icon={vendorIcon}
+                  >
+                    <Popup>
+                      <strong>{vendor.name}</strong> <br />
+                      {t("shop_id")}: {vendor.shopID} <br />
+                      {t("category")}: {vendor.category} <br />
+                      {t("location")}: {vendor.location.lat},{" "}
+                      {vendor.location.lng}
+                    </Popup>
+                  </Marker>
+                ))}
+            </div>
           </div>
         </div>
-        <div className="mt-2">
-          <button
-            className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-            onClick={clearAllStalls}
-          >
-            {t("clear_stalls")}
-          </button>
-        </div>
-        <p className="mt-2 text-gray-600">
-          {bulkPlacement
-            ? t("bulk_placement_instructions")
-            : t("single_placement_instructions")}
-        </p>
-      </div>
 
-      <div className="mt-6 h-96">
-        <h3 className="font-semibold text-gray-700">{t("stall_locations")}</h3>
-        <MapContainer
-          center={[19.066435205235848, 72.99389000336194]}
-          zoom={18}
-          style={{ height: "100%", width: "100%" }}
-          dragging={!bulkPlacement}
-          scrollWheelZoom={!bulkPlacement}
-        >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <MapDragToggle />
-          <MapEvents />
-          {stalls.map((stall) => (
-            <Marker
-              key={stall._id}
-              position={[stall.lat, stall.lng]}
-              icon={stallIcon(stall.taken)}
-              draggable={true}
-              eventHandlers={{
-                dragend: (e) => {
-                  const newPosition = e.target.getLatLng();
-                  updateStallPosition(stall._id, newPosition);
-                },
-              }}
-            >
-              <Popup>
-                <strong>{stall.name}</strong> <br />
-                {t("status")}: {stall.taken ? t("booked") : t("available")}{" "}
-                <br />
-                {stall.taken && stall.vendorID && (
-                  <>
-                    {t("vendor_id")}: {stall.vendorID} <br />
-                  </>
-                )}
-                {t("coordinates")}: {stall.lat}, {stall.lng} <br />
-                <button
-                  className="mt-2 px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                  onClick={() => deleteStall(stall._id)}
-                >
-                  {t("delete_stall")}
-                </button>
-              </Popup>
-            </Marker>
-          ))}
-          {vendors
-            .filter((vendor) => vendor.location?.lat && vendor.location?.lng)
-            .map((vendor) => (
-              <Marker
-                key={vendor._id}
-                position={[vendor.location.lat, vendor.location.lng]}
-                icon={vendorIcon}
-              >
-                <Popup>
-                  <strong>{vendor.name}</strong> <br />
-                  {t("shop_id")}: {vendor.shopID} <br />
-                  {t("category")}: {vendor.category} <br />
-                  {t("location")}: {vendor.location.lat}, {vendor.location.lng}
-                </Popup>
-              </Marker>
-            ))}
-          {bulkStart && bulkEnd && (
-            <Rectangle
-              bounds={[
-                [bulkStart.lat, bulkStart.lng],
-                [bulkEnd.lat, bulkEnd.lng],
-              ]}
-              color="blue"
-              fillOpacity={0.2}
-            />
+        <div className="mb-6">
+          <h3 className="text-xl font-semibold text-gray-700 mb-4">
+            {t("assign_locations")}
+          </h3>
+          {vendors.length === 0 ? (
+            <p className="text-gray-500">{t("no_vendors")}</p>
+          ) : (
+            <div className="bg-white p-4 rounded-lg shadow">
+              <ul>
+                {vendors.map((vendor) => (
+                  <li
+                    key={vendor._id}
+                    className="p-2 border-b flex justify-between items-center"
+                  >
+                    <span className="text-gray-700">
+                      {vendor.name} - {vendor.shopID}
+                    </span>
+                    <button
+                      className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      onClick={() => setSelectedVendor(vendor)}
+                    >
+                      {vendor.location?.lat
+                        ? t("reassign_location")
+                        : t("assign_location")}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
-        </MapContainer>
-      </div>
+        </div>
 
-      <div className="mt-4">
-        <h3 className="font-semibold text-gray-700">{t("assign_locations")}</h3>
-        {vendors.length === 0 ? (
-          <p className="text-gray-500 mt-2">{t("no_vendors")}</p>
-        ) : (
-          <ul className="mt-2">
-            {vendors.map((vendor) => (
-              <li
-                key={vendor._id}
-                className="p-2 border-b flex justify-between items-center"
-              >
-                <span>
-                  {vendor.name} - {vendor.shopID}
-                </span>
-                <button
-                  className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  onClick={() => setSelectedVendor(vendor)}
-                >
-                  {vendor.location?.lat
-                    ? t("reassign_location")
-                    : t("assign_location")}
-                </button>
-              </li>
-            ))}
-          </ul>
+        {showReviewModal && selectedVendor && (
+          <LicenseReview
+            vendor={selectedVendor}
+            closeModal={() => {
+              setShowReviewModal(false);
+              setSelectedVendor(null);
+            }}
+            onApprove={handleApprove}
+          />
+        )}
+
+        {showCompletedModal && selectedVendor && (
+          <CompletedLicense
+            vendor={selectedVendor}
+            closeModal={() => {
+              setShowCompletedModal(false);
+              setSelectedVendor(null);
+            }}
+          />
         )}
       </div>
-
-      {showReviewModal && selectedVendor && (
-        <LicenseReview
-          vendor={selectedVendor}
-          closeModal={() => {
-            setShowReviewModal(false);
-            setSelectedVendor(null);
-          }}
-          onApprove={handleApprove}
-        />
-      )}
-
-      {showCompletedModal && selectedVendor && (
-        <CompletedLicense
-          vendor={selectedVendor}
-          closeModal={() => {
-            setShowCompletedModal(false);
-            setSelectedVendor(null);
-          }}
-        />
-      )}
     </div>
   );
 }

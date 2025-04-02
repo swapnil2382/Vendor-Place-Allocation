@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const Vendor = require("../models/Vendor");
 const User = require("../models/User");
+const Stall = require("../models/Stall"); // Import Stall model
 const { protectUser } = require("../middleware/authMiddleware");
 
 router.get("/products", protectUser, async (req, res) => {
@@ -10,7 +11,9 @@ router.get("/products", protectUser, async (req, res) => {
     const vendors = await Vendor.find({});
     console.log(`Found ${vendors.length} vendors`);
     const products = vendors.flatMap((vendor) => {
-      console.log(`Vendor ${vendor._id} has ${vendor.products.length} products`);
+      console.log(
+        `Vendor ${vendor._id} has ${vendor.products.length} products`
+      );
       return vendor.products;
     });
     console.log(`User ${req.user._id} fetched ${products.length} products`);
@@ -33,30 +36,38 @@ router.post("/orders", protectUser, async (req, res) => {
     for (const item of items) {
       const vendor = await Vendor.findOne({ "products._id": item.productId });
       if (!vendor) {
-        return res.status(404).json({ message: `Vendor for product ${item.productName} not found` });
+        return res.status(404).json({
+          message: `Vendor for product ${item.productName} not found`,
+        });
       }
 
       const product = vendor.products.id(item.productId);
       if (!product) {
-        return res.status(404).json({ message: `Product ${item.productName} not found` });
+        return res
+          .status(404)
+          .json({ message: `Product ${item.productName} not found` });
       }
 
       if (product.stock < item.quantity) {
-        return res.status(400).json({ message: `Insufficient stock for ${item.productName}` });
+        return res
+          .status(400)
+          .json({ message: `Insufficient stock for ${item.productName}` });
       }
 
       vendor.orders.push({
         userId,
         productId: item.productId,
         productName: item.productName,
-        productImage: product.image, // Store the image when order is placed
+        productImage: product.image,
         quantity: item.quantity,
         price: item.price,
         status: "Pending",
       });
 
       await vendor.save();
-      console.log(`Order placed for ${item.productName} by user ${userId} to vendor ${vendor._id}`);
+      console.log(
+        `Order placed for ${item.productName} by user ${userId} to vendor ${vendor._id}`
+      );
     }
 
     res.status(201).json({ message: "Order placed successfully" });
@@ -69,20 +80,22 @@ router.post("/orders", protectUser, async (req, res) => {
 router.get("/my-orders", protectUser, async (req, res) => {
   try {
     const vendors = await Vendor.find({ "orders.userId": req.user._id });
-    console.log(`Raw vendors with orders:`, vendors.map(v => ({ id: v._id, orders: v.orders })));
+    console.log(
+      `Raw vendors with orders:`,
+      vendors.map((v) => ({ id: v._id, orders: v.orders }))
+    );
 
     const userOrders = vendors.flatMap((vendor) => {
-      const filteredOrders = vendor.orders.filter((order) =>
-        order.userId.toString() === req.user._id.toString()
+      const filteredOrders = vendor.orders.filter(
+        (order) => order.userId.toString() === req.user._id.toString()
       );
       return filteredOrders.map((order) => {
-        // Find the product in the vendor's products array to get the image
         const product = vendor.products.id(order.productId);
         return {
           _id: order._id,
           product: {
             name: order.productName,
-            image: product ? product.image : null, // Include image from product
+            image: product ? product.image : null,
           },
           productName: order.productName,
           quantity: order.quantity,
@@ -94,7 +107,9 @@ router.get("/my-orders", protectUser, async (req, res) => {
       });
     });
 
-    console.log(`Returning ${userOrders.length} orders for user ${req.user._id}`);
+    console.log(
+      `Returning ${userOrders.length} orders for user ${req.user._id}`
+    );
     res.json(userOrders);
   } catch (error) {
     console.error("Error in /api/users/my-orders:", error);
@@ -115,7 +130,7 @@ router.get("/me", protectUser, async (req, res) => {
 
 router.get("/user/:id", async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-password"); // Exclude password
+    const user = await User.findById(req.params.id).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -128,6 +143,40 @@ router.get("/user/:id", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching user:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// New endpoint to fetch market locations for authenticated users
+router.get("/locations", protectUser, async (req, res) => {
+  try {
+    const stalls = await Stall.find();
+    // Group stalls by locationName and calculate average coordinates
+    const groupedLocations = stalls.reduce((acc, stall) => {
+      const { locationName, lat, lng } = stall;
+      if (!acc[locationName]) {
+        acc[locationName] = { stalls: [], totalLat: 0, totalLng: 0, count: 0 };
+      }
+      acc[locationName].stalls.push(stall);
+      acc[locationName].totalLat += lat;
+      acc[locationName].totalLng += lng;
+      acc[locationName].count += 1;
+      return acc;
+    }, {});
+
+    // Format the response to include only location data
+    const locations = Object.keys(groupedLocations).map((locationName) => {
+      const { totalLat, totalLng, count, stalls } =
+        groupedLocations[locationName];
+      const avgLat = totalLat / count;
+      const avgLng = totalLng / count;
+      const isAvailable = stalls.some((stall) => !stall.taken);
+      return { locationName, avgLat, avgLng, isAvailable };
+    });
+
+    res.json(locations);
+  } catch (error) {
+    console.error("Error fetching locations:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });

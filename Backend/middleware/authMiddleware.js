@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Vendor = require("../models/Vendor");
 
+
 const authenticate = async (req, res, next, Model, role) => {
   let token;
 

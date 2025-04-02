@@ -1,109 +1,211 @@
-// src/components/MapComponent.jsx
-import { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Rectangle, Tooltip, Marker, useMapEvents } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMapEvents,
+  useMap,
+} from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { useEffect } from "react";
 
-// Custom green icon (for available spots)
-const greenIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+const locationIcon = (isAvailable) =>
+  L.icon({
+    iconUrl: isAvailable
+      ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png" // Green marker for available
+      : "https://maps.google.com/mapfiles/ms/icons/red-dot.png", // Red marker for unavailable
+    iconSize: [32, 32], // Size of the icon
+    iconAnchor: [16, 32], // Anchor point of the icon (bottom center of the marker)
+    popupAnchor: [0, -32], // Where the popup appears relative to the icon
+  });
 
-// Custom red icon (for all taken)
-const redIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+const stallIcon = (taken) =>
+  L.divIcon({
+    html: `<div style="background-color: ${
+      taken ? "red" : "green"
+    }; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>`,
+    className: "",
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    popupAnchor: [0, -10],
+  });
 
-const MapComponent = ({ stalls }) => {
-  const center = [19.066435205235848, 72.99389000336194];
-  const mapRef = useRef();
-  const [zoomLevel, setZoomLevel] = useState(18); // Track zoom level
-
-  const metersToLatLng = (meters) => meters / 111000;
-  const squareSize = metersToLatLng(5); // 5m x 5m square
-  const hasEmptySpots = stalls.some(stall => !stall.taken);
-
-  // Listen to zoom events
+const MapComponent = ({
+  center,
+  zoom,
+  stalls = [], // Default to empty array
+  locations = [], // New prop for pre-grouped locations
+  onMapClick,
+  onMarkerClick,
+  selectedLocation,
+  showLocations = false,
+  showOnlyLocations = false,
+  disableInteractions = false,
+}) => {
   const MapEvents = () => {
+    const map = useMap();
+
+    useEffect(() => {
+      if (disableInteractions) {
+        map.dragging.disable();
+        map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+        if (map.tap) map.tap.disable();
+      } else {
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+        if (map.tap) map.tap.enable();
+      }
+    }, [disableInteractions]);
+
     useMapEvents({
-      zoomend: (e) => {
-        const newZoom = e.target.getZoom();
-        setZoomLevel(newZoom);
-        console.log('Zoom Changed To:', newZoom, 'Has Empty Spots:', hasEmptySpots);
+      click: (e) => {
+        if (!disableInteractions && onMapClick) {
+          onMapClick(e.latlng);
+        }
       },
     });
     return null;
   };
 
-  useEffect(() => {
-    if (mapRef.current) {
-      mapRef.current.invalidateSize(); // Redraw map when stalls change
-    }
-  }, [stalls]);
+  // Group stalls by locationName if showLocations is true and locations prop is not provided
+  const groupedLocations =
+    showLocations && !locations.length
+      ? stalls.reduce((acc, stall) => {
+          const { locationName, lat, lng } = stall;
+          if (!acc[locationName]) {
+            acc[locationName] = {
+              stalls: [],
+              totalLat: 0,
+              totalLng: 0,
+              count: 0,
+            };
+          }
+          acc[locationName].stalls.push(stall);
+          acc[locationName].totalLat += parseFloat(lat);
+          acc[locationName].totalLng += parseFloat(lng);
+          acc[locationName].count += 1;
+          return acc;
+        }, {})
+      : {};
 
-  console.log('Rendering Stalls:', stalls.length, stalls);
-  console.log('Current Zoom Level:', zoomLevel, 'Should Show Marker:', zoomLevel < 18);
-  console.log('Tooltip Content:', hasEmptySpots ? 'Available Spots' : 'All Taken');
+  const computedLocations = locations.length
+    ? locations
+    : showLocations
+    ? Object.keys(groupedLocations).map((locationName) => {
+        const { totalLat, totalLng, count, stalls } =
+          groupedLocations[locationName];
+        const avgLat = totalLat / count;
+        const avgLng = totalLng / count;
+        const isAvailable = stalls.some((stall) => !stall.taken);
+        return { locationName, avgLat, avgLng, stalls, isAvailable };
+      })
+    : [];
 
   return (
     <MapContainer
       center={center}
-      zoom={18}
+      zoom={zoom}
       scrollWheelZoom={true}
-      className="w-full h-full"
-      whenCreated={(map) => {
-        mapRef.current = map;
-        setZoomLevel(map.getZoom()); // Set initial zoom
-      }}
+      style={{ height: "100%", width: "100%" }}
     >
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
-      {/* Render individual stall squares */}
-      {stalls.map((stall, index) => (
-        <Rectangle
-          key={index}
-          bounds={[
-            [stall.lat, stall.lng],
-            [stall.lat + squareSize, stall.lng + squareSize],
-          ]}
-          color={stall.taken ? 'green' : 'red'}
-          weight={2}
-          fillOpacity={0.5}
-        >
-          <Tooltip permanent={false}>
-            {stall.taken ? stall.name : 'Empty'}
-          </Tooltip>
-        </Rectangle>
-      ))}
-      {/* Listen for zoom events */}
       <MapEvents />
-      {/* Common marker when zoomed out */}
-      {zoomLevel < 18 && (
-        <Marker
-          position={center}
-          icon={hasEmptySpots ? greenIcon : redIcon}
-        >
-          <Tooltip
-            permanent={false} // Show only on hover
-            direction="top" // Position above marker
-            offset={[0, -10]} // Adjust position slightly above
-            opacity={1} // Ensure visibility
+
+      {showLocations ? (
+        <>
+          {computedLocations.map((location) => (
+            <Marker
+              key={location.locationName}
+              position={[location.avgLat, location.avgLng]}
+              icon={locationIcon(location.isAvailable)}
+              eventHandlers={{
+                click: () =>
+                  !disableInteractions &&
+                  !showOnlyLocations &&
+                  onMarkerClick &&
+                  onMarkerClick(location),
+              }}
+            >
+              <Popup>
+                <strong>{location.locationName}</strong> <br />
+                {location.isAvailable
+                  ? "Available stalls"
+                  : "All stalls booked"}
+              </Popup>
+              <div
+                style={{
+                  position: "absolute",
+                  top: "-40px", // Position above the marker (adjusted for marker height)
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  backgroundColor: "white",
+                  padding: "2px 5px",
+                  borderRadius: "3px",
+                  fontSize: "12px",
+                  whiteSpace: "nowrap",
+                  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)", // Add a subtle shadow for better visibility
+                  zIndex: 1000, // Ensure the label is above other map elements
+                }}
+              >
+                {location.locationName}
+              </div>
+            </Marker>
+          ))}
+
+          {!showOnlyLocations &&
+            selectedLocation &&
+            groupedLocations[selectedLocation] &&
+            groupedLocations[selectedLocation].stalls.map((stall) => (
+              <Marker
+                key={stall._id}
+                position={[parseFloat(stall.lat), parseFloat(stall.lng)]}
+                icon={stallIcon(stall.taken)}
+                eventHandlers={{
+                  click: () =>
+                    !disableInteractions &&
+                    onMarkerClick &&
+                    onMarkerClick(stall),
+                }}
+              >
+                <Popup>
+                  <strong>Stall</strong> <br />
+                  Status: {stall.taken ? "Booked" : "Available"} <br />
+                  Coordinates: {stall.lat}, {stall.lng}
+                </Popup>
+              </Marker>
+            ))}
+        </>
+      ) : (
+        stalls.map((stall) => (
+          <Marker
+            key={stall._id}
+            position={[parseFloat(stall.lat), parseFloat(stall.lng)]}
+            icon={stallIcon(stall.taken)}
+            eventHandlers={{
+              click: () =>
+                !disableInteractions && onMarkerClick && onMarkerClick(stall),
+            }}
           >
-            {hasEmptySpots ? 'Available Spots' : 'All Taken'}
-          </Tooltip>
-        </Marker>
+            <Popup>
+              <strong>Stall</strong> <br />
+              Location: {stall.locationName} <br />
+              Status: {stall.taken ? "Booked" : "Available"} <br />
+              Coordinates: {stall.lat}, {stall.lng}
+            </Popup>
+          </Marker>
+        ))
       )}
     </MapContainer>
   );

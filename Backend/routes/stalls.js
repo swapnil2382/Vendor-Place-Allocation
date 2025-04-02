@@ -90,5 +90,14 @@ router.get("/by-vendor/:vendorId", protectVendor, async (req, res) => {
     });
   }
 });
+router.get("/stalls", protectVendor, async (req, res) => {
+  try {
+    const stalls = await Stall.find();
+    res.json(stalls);
+  } catch (error) {
+    console.error("Error fetching stalls:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 module.exports = router;

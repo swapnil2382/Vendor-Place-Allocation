@@ -158,6 +158,10 @@ function VendorDashboard() {
     setShowLicensePopup(false);
   };
 
+  const handlePlacesClick = () => {
+    navigate("/places");
+  };
+
   return (
     <div className="w-[98%] h-screen bg-gray-100 flex flex-col font-sans mx-auto overflow-hidden scrollbar-hidden">
       <style>
@@ -180,12 +184,20 @@ function VendorDashboard() {
       </style>
 
       {/* Header */}
-      <div className="relative bg-white shadow-md py-6">
-        <h2 className="text-3xl font-bold text-gray-900 text-center">
+      <div className="relative bg-white shadow-md py-6 flex justify-between items-center px-8">
+        <button
+          onClick={handlePlacesClick}
+          className="px-4 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 transition-colors"
+        >
+          Places
+        </button>
+
+        <h2 className="text-3xl font-bold text-gray-900">
           Vendor Management Portal
         </h2>
+
         {vendor && (
-          <div className="absolute top-4 right-4">
+          <div className="relative">
             <button
               onClick={() => setShowOverview(!showOverview)}
               className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold hover:bg-blue-700 transition-colors"
@@ -317,11 +329,25 @@ function VendorDashboard() {
                       Key Features
                     </h4>
                     <ul className="list-disc list-inside text-gray-600 space-y-2">
-                      <li><strong>Stall Management:</strong> Reserve and manage...</li>
-                      <li><strong>Order Tracking:</strong> Monitor customer orders...</li>
-                      <li><strong>Product Inventory:</strong> Add, update, and remove...</li>
-                      <li><strong>License Compliance:</strong> Apply for and track...</li>
-                      <li><strong>Attendance System:</strong> Record daily attendance...</li>
+                      <li>
+                        <strong>Stall Management:</strong> Reserve and manage...
+                      </li>
+                      <li>
+                        <strong>Order Tracking:</strong> Monitor customer
+                        orders...
+                      </li>
+                      <li>
+                        <strong>Product Inventory:</strong> Add, update, and
+                        remove...
+                      </li>
+                      <li>
+                        <strong>License Compliance:</strong> Apply for and
+                        track...
+                      </li>
+                      <li>
+                        <strong>Attendance System:</strong> Record daily
+                        attendance...
+                      </li>
                     </ul>
                   </section>
                   <section>
@@ -351,17 +377,22 @@ function VendorDashboard() {
                       </div>
                       <div>
                         <dt className="font-medium">Coordinates:</dt>
-                        <dd>{bookingInfo.lat}, {bookingInfo.lng}</dd>
+                        <dd>
+                          {bookingInfo.lat}, {bookingInfo.lng}
+                        </dd>
                       </div>
                       <div>
                         <dt className="font-medium">Reservation Status:</dt>
-                        <dd>{bookingInfo.taken ? "Confirmed" : "Not Confirmed"}</dd>
+                        <dd>
+                          {bookingInfo.taken ? "Confirmed" : "Not Confirmed"}
+                        </dd>
                       </div>
                     </dl>
                     {timeLeft !== null && (
                       <div className="mt-4">
                         <p className="text-gray-700">
-                          <strong>Attendance Deadline:</strong> {formatTimeLeft()}
+                          <strong>Attendance Deadline:</strong>{" "}
+                          {formatTimeLeft()}
                         </p>
                         <button
                           onClick={markAttendance}
@@ -372,7 +403,9 @@ function VendorDashboard() {
                               : "bg-blue-700 hover:bg-blue-800"
                           }`}
                         >
-                          {attendanceMarked ? "Attendance Recorded" : "Record Attendance"}
+                          {attendanceMarked
+                            ? "Attendance Recorded"
+                            : "Record Attendance"}
                         </button>
                       </div>
                     )}
@@ -393,7 +426,9 @@ function VendorDashboard() {
                   onClick={markAttendance}
                   disabled={attendanceMarked}
                 >
-                  {attendanceMarked ? "Attendance Recorded" : "Record Daily Attendance"}
+                  {attendanceMarked
+                    ? "Attendance Recorded"
+                    : "Record Daily Attendance"}
                 </button>
               </div>
             )}
@@ -438,7 +473,9 @@ function VendorDashboard() {
                       </div>
                       <div>
                         <dt className="font-medium">Coordinates:</dt>
-                        <dd>{bookingInfo.lat}, {bookingInfo.lng}</dd>
+                        <dd>
+                          {bookingInfo.lat}, {bookingInfo.lng}
+                        </dd>
                       </div>
                       <button
                         className="mt-4 px-6 py-2 bg-red-600 text-white rounded font-medium hover:bg-red-700 transition-colors"
