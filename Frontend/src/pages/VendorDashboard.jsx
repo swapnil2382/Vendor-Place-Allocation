@@ -5,6 +5,7 @@ import VendorProfile from "../components/VendorProfile";
 import ProductForm from "../components/ProductForm";
 import ProductList from "../components/ProductList";
 import VendorOrders from "../components/VendorOrders";
+import LicenseApplication from "../components/LicenseApplication";
 
 function VendorDashboard() {
   const [vendor, setVendor] = useState(null);
@@ -13,8 +14,9 @@ function VendorDashboard() {
   const [loading, setLoading] = useState(true);
   const [attendanceMarked, setAttendanceMarked] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null);
-  const [activeTab, setActiveTab] = useState("home"); // Default to "home"
-  const [showOverview, setShowOverview] = useState(false); // Toggle for overview
+  const [activeTab, setActiveTab] = useState("home");
+  const [showOverview, setShowOverview] = useState(false);
+  const [showLicensePopup, setShowLicensePopup] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -148,15 +150,116 @@ function VendorDashboard() {
     navigate("/login");
   };
 
+  const openLicensePopup = () => {
+    setShowLicensePopup(true);
+  };
+
+  const closeLicensePopup = () => {
+    setShowLicensePopup(false);
+  };
+
   return (
-    <div className="w-screen h-screen bg-gray-100 flex flex-col font-sans overflow-auto">
+    <div className="w-[98%] h-screen bg-gray-100 flex flex-col font-sans mx-auto overflow-hidden scrollbar-hidden">
+      <style>
+        {`
+          .scrollbar-hidden::-webkit-scrollbar {
+            display: none;
+          }
+          .scrollbar-hidden {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .popup-scroll::-webkit-scrollbar {
+            display: none;
+          }
+          .popup-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+        `}
+      </style>
+
       {/* Header */}
-      <h2 className="text-3xl font-bold text-gray-900 text-center py-6 bg-white shadow-md">
-        Vendor Management Portal
-      </h2>
+      <div className="relative bg-white shadow-md py-6">
+        <h2 className="text-3xl font-bold text-gray-900 text-center">
+          Vendor Management Portal
+        </h2>
+        {vendor && (
+          <div className="absolute top-4 right-4">
+            <button
+              onClick={() => setShowOverview(!showOverview)}
+              className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold hover:bg-blue-700 transition-colors"
+              aria-label="View Profile"
+            >
+              {vendor.name ? vendor.name.charAt(0).toUpperCase() : "V"}
+            </button>
+            {showOverview && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-100 z-10">
+                <div className="p-4">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                    Vendor Overview
+                  </h3>
+                  <dl className="space-y-2 text-gray-700 text-sm">
+                    <div>
+                      <dt className="font-medium">Registered Name:</dt>
+                      <dd>{vendor.name}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-medium">Vendor ID:</dt>
+                      <dd>{vendor.shopID}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-medium">Assigned Location:</dt>
+                      <dd>{vendor.gpsCoordinates || "Not Assigned"}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-medium">Last Attendance:</dt>
+                      <dd>
+                        {vendor.lastAttendance
+                          ? new Date(vendor.lastAttendance).toLocaleString()
+                          : "Not Recorded"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-medium">License Status:</dt>
+                      <dd>
+                        <span
+                          className={`font-semibold ${
+                            vendor.license?.status === "not issued"
+                              ? "text-gray-500"
+                              : vendor.license?.status === "requested"
+                              ? "text-yellow-600"
+                              : vendor.license?.status === "completed"
+                              ? "text-green-600"
+                              : "text-blue-600"
+                          }`}
+                        >
+                          {vendor.license?.status === "not issued"
+                            ? "Not Issued"
+                            : vendor.license?.status === "requested"
+                            ? "Pending Review"
+                            : vendor.license?.status === "completed"
+                            ? "Completed"
+                            : "Active"}
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+                  <button
+                    className="mt-4 w-full bg-gray-600 text-white py-2 rounded font-medium hover:bg-gray-700 transition-colors"
+                    onClick={handleLogout}
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Navigation Tabs */}
-      <nav className="flex border-b-2 border-gray-300 bg-white shadow-sm">
+      <nav className="flex border-b-2 border-gray-200 bg-white shadow-sm">
         {[
           { id: "home", label: "Home" },
           { id: "dashboard", label: "Dashboard" },
@@ -167,25 +270,26 @@ function VendorDashboard() {
           { id: "add-product", label: "Register Product" },
           { id: "orders", label: "Order Management" },
         ].map((tab) => (
-          <button
-            key={tab.id}
-            className={`flex-1 py-4 text-sm font-medium text-gray-700 border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? "border-blue-700 text-blue-700 bg-blue-50"
-                : "border-transparent hover:border-gray-400 hover:bg-gray-100"
-            }`}
-            onClick={() => {
-              setActiveTab(tab.id);
-              setShowOverview(false); // Reset overview visibility
-            }}
-          >
-            {tab.label}
-          </button>
+          <div className="bg-gray-200 p-[0.5%] w-full" key={tab.id}>
+            <button
+              className={`flex-1 py-4 text-sm font-medium text-gray-700 border-b-2 transition-colors w-full ${
+                activeTab === tab.id
+                  ? "bg-white shadow-md text-blue-700 rounded-md"
+                  : "bg-gray-200 hover:bg-gray-300 border-transparent"
+              }`}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setShowOverview(false);
+              }}
+            >
+              {tab.label}
+            </button>
+          </div>
         ))}
       </nav>
 
       {/* Main Content */}
-      <div className="flex-1 p-8 overflow-auto">
+      <div className="flex-1 p-8 overflow-hidden scrollbar-hidden">
         {loading && !vendor ? (
           <p className="text-center text-gray-600 text-lg">
             Retrieving vendor information...
@@ -194,81 +298,41 @@ function VendorDashboard() {
           <div className="space-y-8">
             {/* Home Tab */}
             {activeTab === "home" && vendor && (
-              <div className="h-full flex flex-col items-center justify-center">
+              <div className="bg-white p-6 rounded-lg shadow-md">
                 <h3 className="text-2xl font-semibold text-gray-800 mb-6">
                   Welcome, {vendor.name}
                 </h3>
-                <p className="text-gray-600 text-center mb-8 max-w-2xl">
-                  This is your Vendor Management Portal. Use the navigation
-                  above to manage your profile, products, orders, and more. To
-                  view your vendor overview, click the button below.
-                </p>
-                <button
-                  className="bg-blue-700 text-white px-8 py-3 rounded font-medium hover:bg-blue-800 transition-colors"
-                  onClick={() => setShowOverview(true)}
-                >
-                  View Overview
-                </button>
-
-                {showOverview && (
-                  <section className="mt-8 bg-white p-6 rounded-lg shadow-sm border border-gray-200 w-full max-w-4xl">
-                    <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                      Vendor Overview
-                    </h3>
-                    <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-                      <div>
-                        <dt className="font-medium">Registered Name:</dt>
-                        <dd>{vendor.name}</dd>
-                      </div>
-                      <div>
-                        <dt className="font-medium">Vendor ID:</dt>
-                        <dd>{vendor.shopID}</dd>
-                      </div>
-                      <div>
-                        <dt className="font-medium">Assigned Location:</dt>
-                        <dd>{vendor.gpsCoordinates || "Not Assigned"}</dd>
-                      </div>
-                      <div>
-                        <dt className="font-medium">Last Attendance:</dt>
-                        <dd>
-                          {vendor.lastAttendance
-                            ? new Date(vendor.lastAttendance).toLocaleString()
-                            : "Not Recorded"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="font-medium">License Status:</dt>
-                        <dd>
-                          <span
-                            className={`font-semibold ${
-                              vendor.license?.status === "not issued"
-                                ? "text-gray-500"
-                                : vendor.license?.status === "requested"
-                                ? "text-yellow-600"
-                                : vendor.license?.status === "completed"
-                                ? "text-green-600"
-                                : "text-blue-600"
-                            }`}
-                          >
-                            {vendor.license?.status === "not issued"
-                              ? "Not Issued"
-                              : vendor.license?.status === "requested"
-                              ? "Pending Review"
-                              : vendor.license?.status === "completed"
-                              ? "Completed"
-                              : "Active"}
-                          </span>
-                        </dd>
-                      </div>
-                    </dl>
-                    <button
-                      className="mt-6 w-full bg-gray-600 text-white py-3 rounded font-medium hover:bg-gray-700 transition-colors"
-                      onClick={handleLogout}
-                    >
-                      Sign Out
-                    </button>
+                <div className="space-y-6">
+                  <section>
+                    <h4 className="text-xl font-medium text-gray-700 mb-2">
+                      About VendorSync Portal
+                    </h4>
+                    <p className="text-gray-600">
+                      Welcome to VendorSync, your one-stop solution for managing
+                      your vending business efficiently...
+                    </p>
                   </section>
-                )}
+                  <section>
+                    <h4 className="text-xl font-medium text-gray-700 mb-2">
+                      Key Features
+                    </h4>
+                    <ul className="list-disc list-inside text-gray-600 space-y-2">
+                      <li><strong>Stall Management:</strong> Reserve and manage...</li>
+                      <li><strong>Order Tracking:</strong> Monitor customer orders...</li>
+                      <li><strong>Product Inventory:</strong> Add, update, and remove...</li>
+                      <li><strong>License Compliance:</strong> Apply for and track...</li>
+                      <li><strong>Attendance System:</strong> Record daily attendance...</li>
+                    </ul>
+                  </section>
+                  <section>
+                    <h4 className="text-xl font-medium text-gray-700 mb-2">
+                      Why Choose Us?
+                    </h4>
+                    <p className="text-gray-600">
+                      VendorSync is built with vendors in mind...
+                    </p>
+                  </section>
+                </div>
               </div>
             )}
 
@@ -287,22 +351,17 @@ function VendorDashboard() {
                       </div>
                       <div>
                         <dt className="font-medium">Coordinates:</dt>
-                        <dd>
-                          {bookingInfo.lat}, {bookingInfo.lng}
-                        </dd>
+                        <dd>{bookingInfo.lat}, {bookingInfo.lng}</dd>
                       </div>
                       <div>
                         <dt className="font-medium">Reservation Status:</dt>
-                        <dd>
-                          {bookingInfo.taken ? "Confirmed" : "Not Confirmed"}
-                        </dd>
+                        <dd>{bookingInfo.taken ? "Confirmed" : "Not Confirmed"}</dd>
                       </div>
                     </dl>
                     {timeLeft !== null && (
                       <div className="mt-4">
                         <p className="text-gray-700">
-                          <strong>Attendance Deadline:</strong>{" "}
-                          {formatTimeLeft()}
+                          <strong>Attendance Deadline:</strong> {formatTimeLeft()}
                         </p>
                         <button
                           onClick={markAttendance}
@@ -313,9 +372,7 @@ function VendorDashboard() {
                               : "bg-blue-700 hover:bg-blue-800"
                           }`}
                         >
-                          {attendanceMarked
-                            ? "Attendance Recorded"
-                            : "Record Attendance"}
+                          {attendanceMarked ? "Attendance Recorded" : "Record Attendance"}
                         </button>
                       </div>
                     )}
@@ -327,7 +384,6 @@ function VendorDashboard() {
                     </button>
                   </section>
                 )}
-
                 <button
                   className={`w-full py-3 rounded text-white font-medium transition-colors ${
                     attendanceMarked
@@ -337,9 +393,7 @@ function VendorDashboard() {
                   onClick={markAttendance}
                   disabled={attendanceMarked}
                 >
-                  {attendanceMarked
-                    ? "Attendance Recorded"
-                    : "Record Daily Attendance"}
+                  {attendanceMarked ? "Attendance Recorded" : "Record Daily Attendance"}
                 </button>
               </div>
             )}
@@ -352,8 +406,7 @@ function VendorDashboard() {
                 ) : (
                   <div className="text-center">
                     <p className="text-gray-700 mb-4">
-                      Profile information is incomplete. Please provide the
-                      required details to proceed.
+                      Profile information is incomplete...
                     </p>
                     <button
                       className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded font-medium transition-colors"
@@ -385,9 +438,7 @@ function VendorDashboard() {
                       </div>
                       <div>
                         <dt className="font-medium">Coordinates:</dt>
-                        <dd>
-                          {bookingInfo.lat}, {bookingInfo.lng}
-                        </dd>
+                        <dd>{bookingInfo.lat}, {bookingInfo.lng}</dd>
                       </div>
                       <button
                         className="mt-4 px-6 py-2 bg-red-600 text-white rounded font-medium hover:bg-red-700 transition-colors"
@@ -445,14 +496,21 @@ function VendorDashboard() {
                     </div>
                   )}
                 </dl>
-                <Link
-                  to="/vendor/license"
-                  className="mt-6 block text-center bg-blue-700 text-white py-2 rounded font-medium hover:bg-blue-800 transition-colors"
-                >
-                  {vendor.license?.status === "completed"
-                    ? "View License Details"
-                    : "Apply for License"}
-                </Link>
+                {vendor.license?.status === "completed" ? (
+                  <button
+                    onClick={openLicensePopup}
+                    className="mt-6 block text-center bg-blue-700 text-white py-2 rounded font-medium hover:bg-blue-800 transition-colors w-full"
+                  >
+                    View License
+                  </button>
+                ) : (
+                  <Link
+                    to="/vendor/license"
+                    className="mt-6 block text-center bg-blue-700 text-white py-2 rounded font-medium hover:bg-blue-800 transition-colors"
+                  >
+                    Apply for License
+                  </Link>
+                )}
               </section>
             )}
 
@@ -467,6 +525,21 @@ function VendorDashboard() {
           </div>
         )}
       </div>
+
+      {/* License Popup */}
+      {showLicensePopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto relative popup-scroll">
+            <button
+              onClick={closeLicensePopup}
+              className="absolute top-4 right-4 text-gray-600 hover:text-gray-800 text-2xl font-bold"
+            >
+              ×
+            </button>
+            <LicenseApplication vendor={vendor} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

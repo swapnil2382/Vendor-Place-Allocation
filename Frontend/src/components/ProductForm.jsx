@@ -57,102 +57,119 @@ const ProductForm = () => {
   };
 
   return (
-    <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 max-w-lg mx-auto">
-      <h3 className="text-xl font-semibold text-gray-800 mb-4">
+    <section className="bg-white p-8 rounded-lg shadow-md border border-gray-300 max-w-4xl mx-auto ">
+      <h3 className="text-2xl font-bold text-gray-800 mb-6 border-b border-gray-300 pb-2">
         Register New Product
       </h3>
       {message && (
-        <p className="mb-4 text-green-600 bg-green-100 p-2 rounded">{message}</p>
+        <p className="mb-6 text-green-700 bg-green-100 p-3 rounded border border-green-300">
+          {message}
+        </p>
       )}
       {error && (
-        <p className="mb-4 text-red-600 bg-red-100 p-2 rounded">{error}</p>
+        <p className="mb-6 text-red-700 bg-red-100 p-3 rounded border border-red-300">
+          {error}
+        </p>
       )}
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block text-gray-700 font-medium mb-1">
-            Product Name <span className="text-red-600">*</span>
-          </label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
+        <div className="grid grid-cols-2 gap-6">
+          {/* Left Column: Name, Description, Price */}
+          <div className="space-y-6">
+            <div>
+              <label className="block text-gray-700 font-semibold text-sm mb-2">
+                Product Name <span className="text-red-600">*</span>
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 bg-gray-50"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 font-semibold text-sm mb-2">
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 bg-gray-50"
+                rows="4"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 font-semibold text-sm mb-2">
+                Price (₹) <span className="text-red-600">*</span>
+              </label>
+              <input
+                type="number"
+                name="price"
+                value={formData.price}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 bg-gray-50"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Right Column: Category, Stock, Image */}
+          <div className="space-y-6">
+            <div>
+              <label className="block text-gray-700 font-semibold text-sm mb-2">
+                Category <span className="text-red-600">*</span>
+              </label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 bg-gray-50"
+                required
+              >
+                <option value="">Select Category</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Clothing">Clothing</option>
+                <option value="Food">Food</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-gray-700 font-semibold text-sm mb-2">
+                Stock Quantity
+              </label>
+              <input
+                type="number"
+                name="stock"
+                value={formData.stock}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-600 bg-gray-50"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 font-semibold text-sm mb-2">
+                Product Image
+              </label>
+              <input
+                type="file"
+                onChange={handleImageChange}
+                className="w-full p-3 border border-gray-400 rounded text-gray-600 bg-gray-50"
+                accept="image/*"
+              />
+            </div>
+          </div>
         </div>
-        <div>
-          <label className="block text-gray-700 font-medium mb-1">
-            Description
-          </label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows="3"
-          />
-        </div>
-        <div>
-          <label className="block text-gray-700 font-medium mb-1">
-            Price (₹) <span className="text-red-600">*</span>
-          </label>
-          <input
-            type="number"
-            name="price"
-            value={formData.price}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-gray-700 font-medium mb-1">
-            Category <span className="text-red-600">*</span>
-          </label>
-          <select
-            name="category"
-            value={formData.category}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
+
+        {/* Submit Button (Centered Below Columns) */}
+        <div className="flex justify-center">
+          <button
+            type="submit"
+            className="w-1/2 bg-blue-700 text-white py-3 rounded font-semibold uppercase tracking-wide hover:bg-blue-800 transition-colors border border-blue-800 shadow-sm"
           >
-            <option value="">Select Category</option>
-            <option value="Electronics">Electronics</option>
-            <option value="Clothing">Clothing</option>
-            <option value="Food">Food</option>
-            <option value="Other">Other</option>
-          </select>
+            Register Product
+          </button>
         </div>
-        <div>
-          <label className="block text-gray-700 font-medium mb-1">
-            Stock Quantity
-          </label>
-          <input
-            type="number"
-            name="stock"
-            value={formData.stock}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label className="block text-gray-700 font-medium mb-1">
-            Product Image
-          </label>
-          <input
-            type="file"
-            onChange={handleImageChange}
-            className="w-full p-2 border border-gray-300 rounded text-gray-600"
-            accept="image/*"
-          />
-        </div>
-        <button
-          type="submit"
-          className="w-full bg-blue-700 text-white py-2 rounded font-medium hover:bg-blue-800 transition-colors"
-        >
-          Register Product
-        </button>
       </form>
     </section>
   );
