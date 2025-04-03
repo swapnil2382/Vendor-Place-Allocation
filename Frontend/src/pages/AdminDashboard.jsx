@@ -7,6 +7,7 @@ import CompletedLicense from "../components/CompletedLicense";
 import MapComponent from "./MapComponent";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { Marker, Popup } from "leaflet";
 
 const vendorIcon = L.icon({
   iconUrl: "https://cdn-icons-png.flaticon.com/128/684/684908.png",
@@ -30,6 +31,8 @@ function AdminDashboard() {
   const [pendingLocation, setPendingLocation] = useState(null);
   const [locationName, setLocationName] = useState("");
   const [numStalls, setNumStalls] = useState(1);
+  // Add state to control map visibility when modal is open
+  const [mapVisible, setMapVisible] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -102,6 +105,11 @@ function AdminDashboard() {
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [i18n.language]);
+
+  // Update to hide map when modals are open
+  useEffect(() => {
+    setMapVisible(!(showReviewModal || showCompletedModal));
+  }, [showReviewModal, showCompletedModal]);
 
   const handleLicenseClick = (vendor) => {
     if (vendor.license.status === "not issued") return;
@@ -482,7 +490,10 @@ function AdminDashboard() {
           )}
         </div>
 
-        <div className="mb-6">
+        <div
+          className="mb-6"
+          style={{ display: mapVisible ? "block" : "none" }}
+        >
           <h3 className="text-xl font-semibold text-gray-700 mb-4">
             {t("manage_stalls")}
           </h3>
@@ -490,7 +501,10 @@ function AdminDashboard() {
             <p className="text-gray-600 mb-4">
               Click on the map to mark a location and add stalls.
             </p>
-            <div className="h-[500px] rounded-lg overflow-hidden">
+            <div
+              className="h-[500px] rounded-lg overflow-hidden relative"
+              style={{ zIndex: 1 }}
+            >
               <MapComponent
                 center={[19.066435205235848, 72.99389000336194]}
                 zoom={18}
@@ -554,25 +568,48 @@ function AdminDashboard() {
           )}
         </div>
 
+        {/* Modal overlays with higher z-index */}
         {showReviewModal && selectedVendor && (
-          <LicenseReview
-            vendor={selectedVendor}
-            closeModal={() => {
-              setShowReviewModal(false);
-              setSelectedVendor(null);
-            }}
-            onApprove={handleApprove}
-          />
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => {
+                setShowReviewModal(false);
+                setSelectedVendor(null);
+              }}
+            ></div>
+            <div className="bg-white p-6 rounded-lg shadow-xl relative max-w-2xl w-full mx-4 z-50">
+              <LicenseReview
+                vendor={selectedVendor}
+                closeModal={() => {
+                  setShowReviewModal(false);
+                  setSelectedVendor(null);
+                }}
+                onApprove={handleApprove}
+              />
+            </div>
+          </div>
         )}
 
         {showCompletedModal && selectedVendor && (
-          <CompletedLicense
-            vendor={selectedVendor}
-            closeModal={() => {
-              setShowCompletedModal(false);
-              setSelectedVendor(null);
-            }}
-          />
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => {
+                setShowCompletedModal(false);
+                setSelectedVendor(null);
+              }}
+            ></div>
+            <div className="bg-white rounded-lg shadow-xl relative max-w-3xl w-full mx-4 z-50">
+              <CompletedLicense
+                vendor={selectedVendor}
+                closeModal={() => {
+                  setShowCompletedModal(false);
+                  setSelectedVendor(null);
+                }}
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>

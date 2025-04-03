@@ -29,7 +29,7 @@ const UserDashboard = () => {
           return;
         }
         const response = await axios.get(
-          "http://localhost:5000/api/locations",
+          "http://localhost:5000/api/users/locations",
           {
             headers: { Authorization: `Bearer ${token || storedToken}` },
           }
