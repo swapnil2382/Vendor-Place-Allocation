@@ -7,7 +7,6 @@ import CompletedLicense from "../components/CompletedLicense";
 import MapComponent from "./MapComponent";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Marker, Popup } from "leaflet";
 
 const vendorIcon = L.icon({
   iconUrl: "https://cdn-icons-png.flaticon.com/128/684/684908.png",
@@ -32,7 +31,8 @@ function AdminDashboard() {
   const [locationName, setLocationName] = useState("");
   const [numStalls, setNumStalls] = useState(1);
   const [mapVisible, setMapVisible] = useState(true);
-  const [activeView, setActiveView] = useState("dashboard"); // Added for view switching
+  const [activeView, setActiveView] = useState("vendors"); // Default changed to "vendors"
+  const [viewMode, setViewMode] = useState("daily");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -346,16 +346,15 @@ function AdminDashboard() {
           <li className="mb-4">
             <button
               className={`w-full text-left py-2 px-4 rounded ${
-                activeView === "dashboard"
+                activeView === "vendors"
                   ? "bg-gray-600"
                   : "bg-gray-700 hover:bg-gray-600"
               }`}
               onClick={() => setActiveView("vendors")}
             >
-              Dashboard
+              Vendors
             </button>
           </li>
-        
           <li className="mb-4">
             <button
               className={`w-full text-left py-2 px-4 rounded ${
@@ -398,11 +397,7 @@ function AdminDashboard() {
       {/* Main Content */}
       <div className="flex-1 p-6 bg-gray-100">
         <h2 className="text-3xl font-bold text-gray-800 mb-6">
-          {activeView === "dashboard"
-            ? t("admin_dashboard")
-            : activeView === "vendors"
-            ? "Vendors"
-            : "Marketplace"}
+          {activeView === "vendors" ? "Vendors" : "Marketplace"}
         </h2>
 
         {message && (
@@ -415,42 +410,6 @@ function AdminDashboard() {
           >
             {message}
           </div>
-        )}
-
-        {activeView === "dashboard" && (
-          <>
-            <div className="mb-6">
-              <h3 className="text-xl font-semibold text-gray-700 mb-4">
-                {t("assign_locations")}
-              </h3>
-              {vendors.length === 0 ? (
-                <p className="text-gray-500">{t("no_vendors")}</p>
-              ) : (
-                <div className="bg-white p-4 rounded-lg shadow">
-                  <ul>
-                    {vendors.map((vendor) => (
-                      <li
-                        key={vendor._id}
-                        className="p-2 border-b flex justify-between items-center"
-                      >
-                        <span className="text-gray-700">
-                          {vendor.name} - {vendor.shopID}
-                        </span>
-                        <button
-                          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                          onClick={() => setSelectedVendor(vendor)}
-                        >
-                          {vendor.location?.lat
-                            ? t("reassign_location")
-                            : t("assign_location")}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </>
         )}
 
         {activeView === "vendors" && (
@@ -564,6 +523,29 @@ function AdminDashboard() {
               <h3 className="text-xl font-semibold text-gray-700 mb-4">
                 {t("manage_stalls")}
               </h3>
+              {/* Daily and Weekly Buttons */}
+              <div className="mb-4">
+                <button
+                  onClick={() => setViewMode("daily")}
+                  className={`px-4 py-2 mr-2 rounded ${
+                    viewMode === "daily"
+                      ? "bg-green-500 text-white"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  Daily
+                </button>
+                <button
+                  onClick={() => setViewMode("weekly")}
+                  className={`px-4 py-2 rounded ${
+                    viewMode === "weekly"
+                      ? "bg-green-500 text-white"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  Weekly
+                </button>
+              </div>
               <div className="bg-white p-4 rounded-lg shadow">
                 <p className="text-gray-600 mb-4">
                   Click on the map to mark a location and add stalls.
@@ -585,19 +567,19 @@ function AdminDashboard() {
                       (vendor) => vendor.location?.lat && vendor.location?.lng
                     )
                     .map((vendor) => (
-                      <Marker
+                      <L.Marker
                         key={vendor._id}
                         position={[vendor.location.lat, vendor.location.lng]}
                         icon={vendorIcon}
                       >
-                        <Popup>
+                        <L.Popup>
                           <strong>{vendor.name}</strong> <br />
                           {t("shop_id")}: {vendor.shopID} <br />
                           {t("category")}: {vendor.category} <br />
                           {t("location")}: {vendor.location.lat},{" "}
                           {vendor.location.lng}
-                        </Popup>
-                      </Marker>
+                        </L.Popup>
+                      </L.Marker>
                     ))}
                 </div>
               </div>

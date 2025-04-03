@@ -225,4 +225,28 @@ router.delete("/clear-stalls", protectAdmin, async (req, res) => {
   }
 });
 
+// Add this to your existing admin routes file
+router.get("/stall-history/:stallId", protectAdmin, async (req, res) => {
+  try {
+    const stall = await Stall.findById(req.params.stallId).populate(
+      "history.vendorID",
+      "name shopID"
+    );
+    if (!stall) return res.status(404).json({ message: "Stall not found" });
+
+    const history = stall.history.map((entry) => ({
+      vendorName: entry.vendorName,
+      shopID: entry.shopID,
+      bookedOn: entry.bookedOn,
+      unbookedOn: entry.unbookedOn,
+      status: entry.unbookedOn ? "unassigned" : "assigned",
+    }));
+
+    res.json({ history });
+  } catch (error) {
+    console.error("Error fetching stall history:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;

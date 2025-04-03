@@ -13,8 +13,8 @@ import { useEffect } from "react";
 const locationIcon = (isAvailable) =>
   L.icon({
     iconUrl: isAvailable
-      ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png" // Green marker for available
-      : "https://maps.google.com/mapfiles/ms/icons/red-dot.png", // Red marker for unavailable
+      ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png"
+      : "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
     iconSize: [32, 32], // Size of the icon
     iconAnchor: [16, 32], // Anchor point of the icon (bottom center of the marker)
     popupAnchor: [0, -32], // Where the popup appears relative to the icon

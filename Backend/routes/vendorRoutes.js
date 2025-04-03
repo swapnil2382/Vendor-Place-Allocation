@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const Vendor = require("../models/Vendor");
 const Stall = require("../models/Stall");
-const twilio = require("twilio"); // Add Twilio
+const twilio = require("twilio");
 const {
   protectUser,
   protectVendor,
@@ -86,13 +86,19 @@ router.post("/claim-stall/:stallId", protectVendor, async (req, res) => {
 
     stall.taken = true;
     stall.vendorID = vendor._id;
-    stall.bookingTime = new Date(); // Set booking time
+    stall.bookingTime = new Date();
+    stall.history.push({
+      vendorID: vendor._id,
+      vendorName: vendor.name,
+      shopID: vendor.shopID,
+      bookedOn: stall.bookingTime,
+    });
     await stall.save();
 
     vendor.gpsCoordinates = `${stall.lat},${stall.lng}`;
     await vendor.save();
 
-    // Schedule SMS reminder 23 hours and 55 minutes from now (5 minutes before 24-hour deadline)
+    // Schedule SMS reminder 23 hours and 55 minutes from now
     const bookingTime = new Date(stall.bookingTime);
     const reminderTime = new Date(
       bookingTime.getTime() + 23 * 60 * 60 * 1000 + 55 * 60 * 1000
@@ -150,6 +156,14 @@ router.post("/unbook-stall", protectVendor, async (req, res) => {
       return res
         .status(404)
         .json({ message: "No stall booked by this vendor" });
+    }
+
+    // Update the latest history entry with unbookedOn
+    const latestHistory = stall.history.find(
+      (entry) => entry.vendorID.toString() === vendor._id.toString() && !entry.unbookedOn
+    );
+    if (latestHistory) {
+      latestHistory.unbookedOn = new Date();
     }
 
     stall.taken = false;
@@ -323,7 +337,6 @@ router.get("/marketplace", async (req, res) => {
   }
 });
 
-
 router.put(
   "/complete-profile",
   protectVendor,
@@ -333,15 +346,14 @@ router.put(
   ]),
   async (req, res) => {
     try {
-      console.log("Request body:", req.body); // Debug
-      console.log("Uploaded files:", req.files); // Debug
+      console.log("Request body:", req.body);
+      console.log("Uploaded files:", req.files);
 
       const vendor = await Vendor.findById(req.vendor.id);
       if (!vendor) {
         return res.status(404).json({ message: "Vendor not found" });
       }
 
-      // Destructure fields from req.body with default empty strings to avoid undefined
       const {
         businessName = "",
         businessDescription = "",
@@ -357,12 +369,11 @@ router.put(
         dailyStock = "",
         peakSellingHours = "",
         priceRange = "",
-        hasTradeLicense = "false", // Default to string "false" for checkbox
-        requiresStorage = "false", // Default to string "false" for checkbox
+        hasTradeLicense = "false",
+        requiresStorage = "false",
         emergencyContact = "",
       } = req.body;
 
-      // Update text fields only if provided (preserve existing values otherwise)
       vendor.businessName = businessName || vendor.businessName;
       vendor.businessDescription = businessDescription || vendor.businessDescription;
       vendor.alternateContact = alternateContact || vendor.alternateContact;
@@ -384,52 +395,47 @@ router.put(
         requiresStorage === "true" ? true : requiresStorage === "false" ? false : vendor.requiresStorage;
       vendor.emergencyContact = emergencyContact || vendor.emergencyContact;
 
-      // Set isProfileComplete to true only if key fields are provided
       vendor.isProfileComplete = !!(
         vendor.businessName &&
         vendor.panNumber &&
-        vendor.category // Assuming category is required from schema
+        vendor.category
       );
 
-      // Handle productsSold as a comma-separated string
       if (productsSold) {
         const productsArray = productsSold
           .split(",")
           .map((name) => ({
             name: name.trim(),
-            price: 0, // Default price (could be made configurable)
-            category: "Uncategorized", // Default category (could be made configurable)
-            stock: 0, // Default stock
+            price: 0,
+            category: "Uncategorized",
+            stock: 0,
             createdAt: new Date(),
           }))
-          .filter((product) => product.name); // Filter out empty names
+          .filter((product) => product.name);
         vendor.products = productsArray.length > 0 ? productsArray : vendor.products;
       }
 
-      // Handle image uploads
       if (req.files) {
         if (req.files.shopPhoto) {
           const shopPhotoUrl = `http://localhost:5000/uploads/${req.files.shopPhoto[0].filename}`;
           vendor.shopPhoto = shopPhotoUrl;
-          console.log("Updated shopPhoto:", shopPhotoUrl); // Debug
+          console.log("Updated shopPhoto:", shopPhotoUrl);
         }
         if (req.files.vendorPhoto) {
           const vendorPhotoUrl = `http://localhost:5000/uploads/${req.files.vendorPhoto[0].filename}`;
           vendor.vendorPhoto = vendorPhotoUrl;
-          console.log("Updated vendorPhoto:", vendorPhotoUrl); // Debug
+          console.log("Updated vendorPhoto:", vendorPhotoUrl);
         }
       }
 
-      // Save the updated vendor document
       await vendor.save();
 
-      // Return the updated vendor data
       res.json({
         message: "Profile updated successfully",
-        vendor: vendor.toJSON(), // Ensure all fields are serialized
+        vendor: vendor.toJSON(),
       });
     } catch (error) {
-      console.error("Error in /complete-profile:", error.stack); // Include stack trace for better debugging
+      console.error("Error in /complete-profile:", error.stack);
       res.status(500).json({
         message: "Server error",
         error: error.message,
@@ -437,7 +443,8 @@ router.put(
     }
   }
 );
-// Check and reset expired stalls (run periodically via cron or manually)
+
+// Check and reset expired stalls
 router.post("/check-expired-stalls", protectVendor, async (req, res) => {
   try {
     const stalls = await Stall.find({
@@ -448,7 +455,7 @@ router.post("/check-expired-stalls", protectVendor, async (req, res) => {
 
     for (const stall of stalls) {
       const bookingTime = new Date(stall.bookingTime);
-      const deadline = new Date(bookingTime.getTime() + 24 * 60 * 60 * 1000); // 24 hours
+      const deadline = new Date(bookingTime.getTime() + 24 * 60 * 60 * 1000);
       if (now > deadline) {
         const vendor = await Vendor.findById(stall.vendorID);
         if (
@@ -456,6 +463,14 @@ router.post("/check-expired-stalls", protectVendor, async (req, res) => {
           (!vendor.lastAttendance ||
             new Date(vendor.lastAttendance) < bookingTime)
         ) {
+          // Update history with unbookedOn
+          const latestHistory = stall.history.find(
+            (entry) => entry.vendorID.toString() === vendor._id.toString() && !entry.unbookedOn
+          );
+          if (latestHistory) {
+            latestHistory.unbookedOn = new Date();
+          }
+
           stall.taken = false;
           stall.vendorID = null;
           stall.bookingTime = null;
@@ -486,8 +501,6 @@ router.post(
       const { name, description, price, category, stock } = req.body;
       const vendor = await Vendor.findById(req.vendor.id);
       if (!vendor) return res.status(404).json({ message: "Vendor not found" });
-
-      console.log("Vendor before update:", vendor);
 
       if (!name || !price || !category) {
         return res.status(400).json({
@@ -524,21 +537,16 @@ router.post(
         createdAt: new Date(),
       };
 
-      // Fallback fix for location
       if (vendor.location && typeof vendor.location === "object") {
         vendor.location = `${vendor.location.latitude || "0"},${
           vendor.location.longitude || "0"
         }`;
       } else if (!vendor.location) {
-        vendor.location = "0,0"; // Default if location is missing
+        vendor.location = "0,0";
       }
-
-      console.log("Final vendor location:", vendor.location);
 
       vendor.products.push(product);
       await vendor.save();
-
-      console.log("Vendor after save:", vendor);
 
       res.json({
         message: "Product added successfully",
@@ -643,13 +651,51 @@ router.put("/orders/:orderId/complete", protectVendor, async (req, res) => {
         .json({ message: "Insufficient stock to complete order" });
     }
 
-    product.stock -= order.quantity; // Decrease stock here
+    product.stock -= order.quantity;
     order.status = "Completed";
     await vendor.save();
 
     res.json({ message: "Order marked as completed", order });
   } catch (error) {
     console.error("Error in /vendors/orders/:orderId/complete:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// Get stall history (admin route)
+router.get("/admin/stall-history/:stallId", protectAdmin, async (req, res) => {
+  try {
+    const stall = await Stall.findById(req.params.stallId).populate(
+      "history.vendorID",
+      "name shopID"
+    );
+    if (!stall) return res.status(404).json({ message: "Stall not found" });
+
+    const history = stall.history.map((entry) => ({
+      vendorName: entry.vendorName,
+      shopID: entry.shopID,
+      bookedOn: entry.bookedOn,
+      unbookedOn: entry.unbookedOn,
+      status: entry.unbookedOn ? "unassigned" : "assigned",
+    }));
+
+    // If the stall is currently booked, add the current booking to history
+    if (stall.taken && stall.vendorID && stall.bookingTime) {
+      const vendor = await Vendor.findById(stall.vendorID);
+      if (vendor) {
+        history.unshift({
+          vendorName: vendor.name,
+          shopID: vendor.shopID,
+          bookedOn: stall.bookingTime,
+          unbookedOn: null,
+          status: "assigned",
+        });
+      }
+    }
+
+    res.json({ history });
+  } catch (error) {
+    console.error("Error fetching stall history:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
