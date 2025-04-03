@@ -16,7 +16,7 @@ const useFetchStalls = () => {
         if (!token) {
           console.warn("No token found, redirecting to login");
           setError("Please log in to view stalls");
-          navigate("/login");
+          navigate("/");
           return;
         }
 
@@ -33,7 +33,7 @@ const useFetchStalls = () => {
           "Failed to fetch stalls";
         setError(errorMessage);
         if (err.response?.status === 401) {
-          navigate("/login");
+          navigate("/");
         }
         setLoading(false);
       }

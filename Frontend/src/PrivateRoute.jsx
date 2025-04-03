@@ -15,11 +15,11 @@ const PrivateRoute = ({ role }) => {
 
   if (!effectiveToken) {
     console.log("Redirecting to /login - No token found");
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
   if (effectiveRole !== role) {
     console.log(`Redirecting to /login - Role mismatch: ${effectiveRole} !== ${role}`);
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;

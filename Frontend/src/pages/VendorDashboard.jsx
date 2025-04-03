@@ -6,6 +6,7 @@ import ProductForm from "../components/ProductForm";
 import ProductList from "../components/ProductList";
 import VendorOrders from "../components/VendorOrders";
 import LicenseApplication from "../components/LicenseApplication";
+import Chatbot from "../components/Chatbot";
 
 function VendorDashboard() {
   const [vendor, setVendor] = useState(null);
@@ -17,6 +18,7 @@ function VendorDashboard() {
   const [activeTab, setActiveTab] = useState("home");
   const [showOverview, setShowOverview] = useState(false);
   const [showLicensePopup, setShowLicensePopup] = useState(false);
+  const [showChatbot, setShowChatbot] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -48,8 +50,7 @@ function VendorDashboard() {
       setAttendanceMarked(isToday);
 
       const stallRes = await axios.get(
-        `http://localhost:5000/api/stalls/by-vendor/${
-          vendorRes.data._id
+        `http://localhost:5000/api/stalls/by-vendor/${vendorRes.data._id
         }?t=${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -72,7 +73,7 @@ function VendorDashboard() {
     } catch (err) {
       setError(
         "Unable to retrieve dashboard data: " +
-          (err.response?.data?.message || err.message)
+        (err.response?.data?.message || err.message)
       );
     } finally {
       setLoading(false);
@@ -113,7 +114,7 @@ function VendorDashboard() {
     } catch (error) {
       setError(
         "Failed to record attendance: " +
-          (error.response?.data?.message || error.message)
+        (error.response?.data?.message || error.message)
       );
     }
   };
@@ -132,7 +133,7 @@ function VendorDashboard() {
     } catch (error) {
       setError(
         "Failed to cancel stall reservation: " +
-          (error.response?.data?.message || error.message)
+        (error.response?.data?.message || error.message)
       );
     }
   };
@@ -147,7 +148,7 @@ function VendorDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    navigate("/login");
+    navigate("/");
   };
 
   const openLicensePopup = () => {
@@ -191,82 +192,88 @@ function VendorDashboard() {
         >
           Places
         </button>
-
-        <h2 className="text-3xl font-bold text-gray-900">
+        <h2 className="text-3xl font-bold text-gray-900 pr-140">
           Vendor Management Portal
         </h2>
 
         {vendor && (
-          <div className="relative">
-            <button
-              onClick={() => setShowOverview(!showOverview)}
-              className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold hover:bg-blue-700 transition-colors"
-              aria-label="View Profile"
-            >
-              {vendor.name ? vendor.name.charAt(0).toUpperCase() : "V"}
-            </button>
-            {showOverview && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-100 z-10">
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                    Vendor Overview
-                  </h3>
-                  <dl className="space-y-2 text-gray-700 text-sm">
-                    <div>
-                      <dt className="font-medium">Registered Name:</dt>
-                      <dd>{vendor.name}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium">Vendor ID:</dt>
-                      <dd>{vendor.shopID}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium">Assigned Location:</dt>
-                      <dd>{vendor.gpsCoordinates || "Not Assigned"}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium">Last Attendance:</dt>
-                      <dd>
-                        {vendor.lastAttendance
-                          ? new Date(vendor.lastAttendance).toLocaleString()
-                          : "Not Recorded"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium">License Status:</dt>
-                      <dd>
-                        <span
-                          className={`font-semibold ${
-                            vendor.license?.status === "not issued"
-                              ? "text-gray-500"
-                              : vendor.license?.status === "requested"
-                              ? "text-yellow-600"
-                              : vendor.license?.status === "completed"
-                              ? "text-green-600"
-                              : "text-blue-600"
-                          }`}
-                        >
-                          {vendor.license?.status === "not issued"
-                            ? "Not Issued"
+          <div className="absolute top-4 right-4 flex space-x-2">
+          <button
+            onClick={() => setShowChatbot(!showChatbot)}
+            className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center text-white font-semibold hover:bg-green-700 transition-colors"
+            aria-label="Open Chatbot"
+          >
+            AI
+          </button>
+          <button
+            onClick={() => setShowOverview(!showOverview)}
+            className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold hover:bg-blue-700 transition-colors"
+            aria-label="View Profile"
+          >
+            {vendor.name ? vendor.name.charAt(0).toUpperCase() : "V"}
+          </button>
+          {showOverview && (
+            <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-100 z-10">
+              <div className="p-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                  Vendor Overview
+                </h3>
+                <dl className="space-y-2 text-gray-700 text-sm">
+                  <div>
+                    <dt className="font-medium">Registered Name:</dt>
+                    <dd>{vendor.name}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium">Vendor ID:</dt>
+                    <dd>{vendor.shopID}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium">Assigned Location:</dt>
+                    <dd>{vendor.gpsCoordinates || "Not Assigned"}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium">Last Attendance:</dt>
+                    <dd>
+                      {vendor.lastAttendance
+                        ? new Date(vendor.lastAttendance).toLocaleString()
+                        : "Not Recorded"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium">License Status:</dt>
+                    <dd>
+                      <span
+                        className={`font-semibold ${
+                          vendor.license?.status === "not issued"
+                            ? "text-gray-500"
                             : vendor.license?.status === "requested"
-                            ? "Pending Review"
+                            ? "text-yellow-600"
                             : vendor.license?.status === "completed"
-                            ? "Completed"
-                            : "Active"}
-                        </span>
-                      </dd>
-                    </div>
-                  </dl>
-                  <button
-                    className="mt-4 w-full bg-gray-600 text-white py-2 rounded font-medium hover:bg-gray-700 transition-colors"
-                    onClick={handleLogout}
-                  >
-                    Sign Out
-                  </button>
-                </div>
+                            ? "text-green-600"
+                            : "text-blue-600"
+                        }`}
+                      >
+                        {vendor.license?.status === "not issued"
+                          ? "Not Issued"
+                          : vendor.license?.status === "requested"
+                          ? "Pending Review"
+                          : vendor.license?.status === "completed"
+                          ? "Completed"
+                          : "Active"}
+                      </span>
+                    </dd>
+                  </div>
+                </dl>
+                <button
+                  className="mt-4 w-full bg-gray-600 text-white py-2 rounded font-medium hover:bg-gray-700 transition-colors"
+                  onClick={handleLogout}
+                >
+                  Sign Out
+                </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
         )}
       </div>
 
@@ -274,7 +281,7 @@ function VendorDashboard() {
       <nav className="flex border-b-2 border-gray-200 bg-white shadow-sm">
         {[
           { id: "home", label: "Home" },
-          { id: "dashboard", label: "Dashboard" },
+          { id: "dashboard", label: "Reservations" },
           { id: "profile", label: "Vendor Profile" },
           { id: "location", label: "Location Management" },
           { id: "license", label: "License Details" },
@@ -284,11 +291,10 @@ function VendorDashboard() {
         ].map((tab) => (
           <div className="bg-gray-200 p-[0.5%] w-full" key={tab.id}>
             <button
-              className={`flex-1 py-4 text-sm font-medium text-gray-700 border-b-2 transition-colors w-full ${
-                activeTab === tab.id
+              className={`flex-1 py-4 text-sm font-medium text-gray-700 border-b-2 transition-colors w-full ${activeTab === tab.id
                   ? "bg-white shadow-md text-blue-700 rounded-md"
                   : "bg-gray-200 hover:bg-gray-300 border-transparent"
-              }`}
+                }`}
               onClick={() => {
                 setActiveTab(tab.id);
                 setShowOverview(false);
@@ -397,11 +403,10 @@ function VendorDashboard() {
                         <button
                           onClick={markAttendance}
                           disabled={attendanceMarked || timeLeft <= 0}
-                          className={`mt-4 px-6 py-2 rounded text-white font-medium transition-colors ${
-                            attendanceMarked || timeLeft <= 0
+                          className={`mt-4 px-6 py-2 rounded text-white font-medium transition-colors ${attendanceMarked || timeLeft <= 0
                               ? "bg-gray-400 cursor-not-allowed"
                               : "bg-blue-700 hover:bg-blue-800"
-                          }`}
+                            }`}
                         >
                           {attendanceMarked
                             ? "Attendance Recorded"
@@ -418,11 +423,10 @@ function VendorDashboard() {
                   </section>
                 )}
                 <button
-                  className={`w-full py-3 rounded text-white font-medium transition-colors ${
-                    attendanceMarked
+                  className={`w-full py-3 rounded text-white font-medium transition-colors ${attendanceMarked
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-blue-700 hover:bg-blue-800"
-                  }`}
+                    }`}
                   onClick={markAttendance}
                   disabled={attendanceMarked}
                 >
@@ -487,7 +491,7 @@ function VendorDashboard() {
                   )}
                 </dl>
                 <Link
-                  to="/vendor/location"
+                  to="/places"
                   className="mt-6 block text-center bg-blue-700 text-white py-2 rounded font-medium hover:bg-blue-800 transition-colors"
                 >
                   Manage Location Preferences
@@ -506,23 +510,22 @@ function VendorDashboard() {
                     <dt className="font-medium">Status:</dt>
                     <dd>
                       <span
-                        className={`font-semibold ${
-                          vendor.license?.status === "not issued"
+                        className={`font-semibold ${vendor.license?.status === "not issued"
                             ? "text-gray-500"
                             : vendor.license?.status === "requested"
-                            ? "text-yellow-600"
-                            : vendor.license?.status === "completed"
-                            ? "text-green-600"
-                            : "text-blue-600"
-                        }`}
+                              ? "text-yellow-600"
+                              : vendor.license?.status === "completed"
+                                ? "text-green-600"
+                                : "text-blue-600"
+                          }`}
                       >
                         {vendor.license?.status === "not issued"
                           ? "Not Issued"
                           : vendor.license?.status === "requested"
-                          ? "Pending Review"
-                          : vendor.license?.status === "completed"
-                          ? "Completed"
-                          : "Active"}
+                            ? "Pending Review"
+                            : vendor.license?.status === "completed"
+                              ? "Completed"
+                              : "Active"}
                       </span>
                     </dd>
                   </div>
@@ -560,6 +563,10 @@ function VendorDashboard() {
             {/* Orders Tab */}
             {activeTab === "orders" && <VendorOrders />}
           </div>
+        )}
+
+        {showChatbot && vendor && (
+          <Chatbot vendor={vendor} onClose={() => setShowChatbot(false)} />
         )}
       </div>
 

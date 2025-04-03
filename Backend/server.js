@@ -9,6 +9,7 @@ const vendorRoutes = require("./routes/vendorRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
+const chatbotRoutes = require("./routes/chatbotRoutes");
 
 const app = express();
 
@@ -81,6 +82,7 @@ mongoose
     app.use("/api/admin", adminRoutes);
     app.use("/api/auth", authRoutes);
     app.use("/api/users", userRoutes);
+    app.use("/api/chatbot", chatbotRoutes);
 
     // Health check endpoint
     app.get("/health", (req, res) => {

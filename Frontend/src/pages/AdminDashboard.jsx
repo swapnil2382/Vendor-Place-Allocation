@@ -31,8 +31,8 @@ function AdminDashboard() {
   const [pendingLocation, setPendingLocation] = useState(null);
   const [locationName, setLocationName] = useState("");
   const [numStalls, setNumStalls] = useState(1);
-  // Add state to control map visibility when modal is open
   const [mapVisible, setMapVisible] = useState(true);
+  const [activeView, setActiveView] = useState("dashboard"); // Added for view switching
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -106,7 +106,6 @@ function AdminDashboard() {
     return () => clearInterval(interval);
   }, [i18n.language]);
 
-  // Update to hide map when modals are open
   useEffect(() => {
     setMapVisible(!(showReviewModal || showCompletedModal));
   }, [showReviewModal, showCompletedModal]);
@@ -174,6 +173,11 @@ function AdminDashboard() {
         console.error("Error clearing stalls:", error);
       }
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/");
   };
 
   const updateVendorLocation = async (vendorId, newLocation) => {
@@ -341,18 +345,27 @@ function AdminDashboard() {
         <ul>
           <li className="mb-4">
             <button
-              className="w-full text-left py-2 px-4 bg-gray-700 rounded hover:bg-gray-600"
-              onClick={() => navigate("/admin-dashboard")}
+              className={`w-full text-left py-2 px-4 rounded ${
+                activeView === "dashboard"
+                  ? "bg-gray-600"
+                  : "bg-gray-700 hover:bg-gray-600"
+              }`}
+              onClick={() => setActiveView("vendors")}
             >
               Dashboard
             </button>
           </li>
+        
           <li className="mb-4">
             <button
-              className="w-full text-left py-2 px-4 bg-gray-700 rounded hover:bg-gray-600"
-              onClick={() => navigate("/manage-vendors")}
+              className={`w-full text-left py-2 px-4 rounded ${
+                activeView === "marketplace"
+                  ? "bg-gray-600"
+                  : "bg-gray-700 hover:bg-gray-600"
+              }`}
+              onClick={() => setActiveView("marketplace")}
             >
-              Manage Vendors
+              Marketplace
             </button>
           </li>
           <li className="mb-4">
@@ -371,13 +384,25 @@ function AdminDashboard() {
               Clear Stalls
             </button>
           </li>
+          <li className="mb-4">
+            <button
+              className="w-full text-left py-2 px-4 bg-gray-700 rounded hover:bg-gray-600"
+              onClick={handleLogout}
+            >
+              Logout
+            </button>
+          </li>
         </ul>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 p-6 bg-gray-100">
         <h2 className="text-3xl font-bold text-gray-800 mb-6">
-          {t("admin_dashboard")}
+          {activeView === "dashboard"
+            ? t("admin_dashboard")
+            : activeView === "vendors"
+            ? "Vendors"
+            : "Marketplace"}
         </h2>
 
         {message && (
@@ -392,183 +417,194 @@ function AdminDashboard() {
           </div>
         )}
 
-        {pendingLocation && (
-          <div className="mb-6 p-4 bg-white rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-4">Add New Location</h3>
-            <div className="mb-4">
-              <label className="block text-gray-700 mb-2">Location Name</label>
-              <input
-                type="text"
-                value={locationName}
-                onChange={(e) => setLocationName(e.target.value)}
-                placeholder="e.g., Downtown Market Square"
-                className="w-full p-2 border rounded"
-              />
+        {activeView === "dashboard" && (
+          <>
+            <div className="mb-6">
+              <h3 className="text-xl font-semibold text-gray-700 mb-4">
+                {t("assign_locations")}
+              </h3>
+              {vendors.length === 0 ? (
+                <p className="text-gray-500">{t("no_vendors")}</p>
+              ) : (
+                <div className="bg-white p-4 rounded-lg shadow">
+                  <ul>
+                    {vendors.map((vendor) => (
+                      <li
+                        key={vendor._id}
+                        className="p-2 border-b flex justify-between items-center"
+                      >
+                        <span className="text-gray-700">
+                          {vendor.name} - {vendor.shopID}
+                        </span>
+                        <button
+                          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                          onClick={() => setSelectedVendor(vendor)}
+                        >
+                          {vendor.location?.lat
+                            ? t("reassign_location")
+                            : t("assign_location")}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 mb-2">
-                Number of Stalls
-              </label>
-              <input
-                type="number"
-                value={numStalls}
-                onChange={(e) => setNumStalls(Number(e.target.value))}
-                min="1"
-                className="w-full p-2 border rounded"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 mb-2">
-                Grid Size (meters)
-              </label>
-              <input
-                type="number"
-                value={gridSize}
-                onChange={(e) => setGridSize(Number(e.target.value))}
-                min="1"
-                className="w-full p-2 border rounded"
-              />
-            </div>
-            <div className="flex space-x-4">
-              <button
-                onClick={handleLocationSubmit}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Submit
-              </button>
-              <button
-                onClick={() => setPendingLocation(null)}
-                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-              >
-                Cancel
-              </button>
-            </div>
+          </>
+        )}
+
+        {activeView === "vendors" && (
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold text-gray-700 mb-4">
+              {t("vendor_licenses")}
+            </h3>
+            {vendors.length === 0 ? (
+              <p className="text-gray-500">{t("no_vendors")}</p>
+            ) : (
+              <div className="bg-white p-4 rounded-lg shadow">
+                <ul>
+                  {vendors.map((vendor) => (
+                    <li
+                      key={vendor._id}
+                      className="p-2 border-b flex justify-between items-center"
+                    >
+                      <span className="text-gray-700">
+                        {vendor.name} - {vendor.shopID}
+                      </span>
+                      <span
+                        className={`px-2 py-1 rounded cursor-pointer ${
+                          vendor.license?.status === "not issued"
+                            ? "bg-gray-400 text-white cursor-not-allowed"
+                            : vendor.license?.status === "requested"
+                            ? "bg-yellow-500 text-white"
+                            : vendor.license?.status === "issued"
+                            ? "bg-blue-500 text-white"
+                            : "bg-green-500 text-white"
+                        }`}
+                        onClick={() => handleLicenseClick(vendor)}
+                      >
+                        {vendor.license?.status === "not issued"
+                          ? t("not_issued")
+                          : vendor.license?.status === "requested"
+                          ? t("requested")
+                          : vendor.license?.status === "issued"
+                          ? t("issued")
+                          : t("completed")}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
-        <div className="mb-6">
-          <h3 className="text-xl font-semibold text-gray-700 mb-4">
-            {t("vendor_licenses")}
-          </h3>
-          {vendors.length === 0 ? (
-            <p className="text-gray-500">{t("no_vendors")}</p>
-          ) : (
-            <div className="bg-white p-4 rounded-lg shadow">
-              <ul>
-                {vendors.map((vendor) => (
-                  <li
-                    key={vendor._id}
-                    className="p-2 border-b flex justify-between items-center"
+        {activeView === "marketplace" && (
+          <>
+            {pendingLocation && (
+              <div className="mb-6 p-4 bg-white rounded-lg shadow">
+                <h3 className="text-lg font-semibold mb-4">Add New Location</h3>
+                <div className="mb-4">
+                  <label className="block text-gray-700 mb-2">
+                    Location Name
+                  </label>
+                  <input
+                    type="text"
+                    value={locationName}
+                    onChange={(e) => setLocationName(e.target.value)}
+                    placeholder="e.g., Downtown Market Square"
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-gray-700 mb-2">
+                    Number of Stalls
+                  </label>
+                  <input
+                    type="number"
+                    value={numStalls}
+                    onChange={(e) => setNumStalls(Number(e.target.value))}
+                    min="1"
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-gray-700 mb-2">
+                    Grid Size (meters)
+                  </label>
+                  <input
+                    type="number"
+                    value={gridSize}
+                    onChange={(e) => setGridSize(Number(e.target.value))}
+                    min="1"
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+                <div className="flex space-x-4">
+                  <button
+                    onClick={handleLocationSubmit}
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                   >
-                    <span className="text-gray-700">
-                      {vendor.name} - {vendor.shopID}
-                    </span>
-                    <span
-                      className={`px-2 py-1 rounded cursor-pointer ${
-                        vendor.license?.status === "not issued"
-                          ? "bg-gray-400 text-white cursor-not-allowed"
-                          : vendor.license?.status === "requested"
-                          ? "bg-yellow-500 text-white"
-                          : vendor.license?.status === "issued"
-                          ? "bg-blue-500 text-white"
-                          : "bg-green-500 text-white"
-                      }`}
-                      onClick={() => handleLicenseClick(vendor)}
-                    >
-                      {vendor.license?.status === "not issued"
-                        ? t("not_issued")
-                        : vendor.license?.status === "requested"
-                        ? t("requested")
-                        : vendor.license?.status === "issued"
-                        ? t("issued")
-                        : t("completed")}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+                    Submit
+                  </button>
+                  <button
+                    onClick={() => setPendingLocation(null)}
+                    className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
 
-        <div
-          className="mb-6"
-          style={{ display: mapVisible ? "block" : "none" }}
-        >
-          <h3 className="text-xl font-semibold text-gray-700 mb-4">
-            {t("manage_stalls")}
-          </h3>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-gray-600 mb-4">
-              Click on the map to mark a location and add stalls.
-            </p>
             <div
-              className="h-[500px] rounded-lg overflow-hidden relative"
-              style={{ zIndex: 1 }}
+              className="mb-6"
+              style={{ display: mapVisible ? "block" : "none" }}
             >
-              <MapComponent
-                center={[19.066435205235848, 72.99389000336194]}
-                zoom={18}
-                stalls={stalls}
-                onMapClick={handleMapClick}
-                onMarkerClick={(stall) => deleteStall(stall._id)}
-                showLocations={false}
-              />
-              {vendors
-                .filter(
-                  (vendor) => vendor.location?.lat && vendor.location?.lng
-                )
-                .map((vendor) => (
-                  <Marker
-                    key={vendor._id}
-                    position={[vendor.location.lat, vendor.location.lng]}
-                    icon={vendorIcon}
-                  >
-                    <Popup>
-                      <strong>{vendor.name}</strong> <br />
-                      {t("shop_id")}: {vendor.shopID} <br />
-                      {t("category")}: {vendor.category} <br />
-                      {t("location")}: {vendor.location.lat},{" "}
-                      {vendor.location.lng}
-                    </Popup>
-                  </Marker>
-                ))}
+              <h3 className="text-xl font-semibold text-gray-700 mb-4">
+                {t("manage_stalls")}
+              </h3>
+              <div className="bg-white p-4 rounded-lg shadow">
+                <p className="text-gray-600 mb-4">
+                  Click on the map to mark a location and add stalls.
+                </p>
+                <div
+                  className="h-[500px] rounded-lg overflow-hidden relative"
+                  style={{ zIndex: 1 }}
+                >
+                  <MapComponent
+                    center={[19.066435205235848, 72.99389000336194]}
+                    zoom={18}
+                    stalls={stalls}
+                    onMapClick={handleMapClick}
+                    onMarkerClick={(stall) => deleteStall(stall._id)}
+                    showLocations={false}
+                  />
+                  {vendors
+                    .filter(
+                      (vendor) => vendor.location?.lat && vendor.location?.lng
+                    )
+                    .map((vendor) => (
+                      <Marker
+                        key={vendor._id}
+                        position={[vendor.location.lat, vendor.location.lng]}
+                        icon={vendorIcon}
+                      >
+                        <Popup>
+                          <strong>{vendor.name}</strong> <br />
+                          {t("shop_id")}: {vendor.shopID} <br />
+                          {t("category")}: {vendor.category} <br />
+                          {t("location")}: {vendor.location.lat},{" "}
+                          {vendor.location.lng}
+                        </Popup>
+                      </Marker>
+                    ))}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
 
-        <div className="mb-6">
-          <h3 className="text-xl font-semibold text-gray-700 mb-4">
-            {t("assign_locations")}
-          </h3>
-          {vendors.length === 0 ? (
-            <p className="text-gray-500">{t("no_vendors")}</p>
-          ) : (
-            <div className="bg-white p-4 rounded-lg shadow">
-              <ul>
-                {vendors.map((vendor) => (
-                  <li
-                    key={vendor._id}
-                    className="p-2 border-b flex justify-between items-center"
-                  >
-                    <span className="text-gray-700">
-                      {vendor.name} - {vendor.shopID}
-                    </span>
-                    <button
-                      className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                      onClick={() => setSelectedVendor(vendor)}
-                    >
-                      {vendor.location?.lat
-                        ? t("reassign_location")
-                        : t("assign_location")}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        {/* Modal overlays with higher z-index */}
         {showReviewModal && selectedVendor && (
           <div className="fixed inset-0 flex items-center justify-center z-50">
             <div

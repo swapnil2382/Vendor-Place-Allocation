@@ -135,15 +135,7 @@ const Places = () => {
             </button>
           </li>
           <li className="mb-4">
-            <button
-              className="w-full text-left py-2 px-4 bg-gray-700 rounded hover:bg-gray-600"
-              onClick={() => {
-                localStorage.removeItem("token");
-                navigate("/login");
-              }}
-            >
-              Logout
-            </button>
+          
           </li>
         </ul>
       </div>
