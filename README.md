@@ -127,4 +127,3 @@ Feel free to submit issues, feature requests, or pull requests to improve this p
 
 ```
 
-This will now be ready for you to paste directly into your `README.md` file. Let me know if you need anything else!
